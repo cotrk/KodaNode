@@ -1,38 +1,36 @@
-import { type User, type InsertUser } from "@shared/schema";
-import { randomUUID } from "crypto";
-
-// modify the interface with any CRUD methods
-// you might need
+import { db } from "./db";
+import {
+  generations,
+  type Generation,
+  type InsertGeneration,
+} from "@shared/schema";
+import { eq, desc } from "drizzle-orm";
 
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  getGenerations(): Promise<Generation[]>;
+  getGeneration(id: number): Promise<Generation | undefined>;
+  createGeneration(generation: InsertGeneration): Promise<Generation>;
+  deleteGeneration(id: number): Promise<void>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-
-  constructor() {
-    this.users = new Map();
+export class DatabaseStorage implements IStorage {
+  async getGenerations(): Promise<Generation[]> {
+    return await db.select().from(generations).orderBy(desc(generations.createdAt));
   }
 
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+  async getGeneration(id: number): Promise<Generation | undefined> {
+    const [generation] = await db.select().from(generations).where(eq(generations.id, id));
+    return generation;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+  async createGeneration(generation: InsertGeneration): Promise<Generation> {
+    const [created] = await db.insert(generations).values(generation).returning();
+    return created;
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+  async deleteGeneration(id: number): Promise<void> {
+    await db.delete(generations).where(eq(generations.id, id));
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
