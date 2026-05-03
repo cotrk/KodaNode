@@ -21,7 +21,6 @@ async function getOllamaUrl(): Promise<string> {
 
 export async function listModels(): Promise<ModelInfo[]> {
   const models: ModelInfo[] = [];
-
   try {
     const ollamaUrl = await getOllamaUrl();
     const res = await fetch(`${ollamaUrl}/api/tags`, { signal: AbortSignal.timeout(5000) });
@@ -31,26 +30,17 @@ export async function listModels(): Promise<ModelInfo[]> {
         models.push({ id: m.name, name: m.name, provider: "ollama" });
       }
     }
-  } catch {
-    // Ollama not reachable — that's fine
-  }
+  } catch { /* not reachable */ }
 
   try {
     const settings = await storage.getProviderSettings();
     const cloudProviders = (settings?.cloudProviders ?? []) as CloudProvider[];
     for (const cp of cloudProviders) {
       for (const modelId of cp.models) {
-        models.push({
-          id: `${cp.id}::${modelId}`,
-          name: modelId,
-          provider: cp.name,
-          providerId: cp.id,
-        });
+        models.push({ id: `${cp.id}::${modelId}`, name: modelId, provider: cp.name, providerId: cp.id });
       }
     }
-  } catch {
-    // ignore
-  }
+  } catch { /* ignore */ }
 
   return models;
 }
@@ -64,13 +54,24 @@ export async function testOllama(ollamaUrl: string): Promise<boolean> {
   }
 }
 
-async function buildOllamaMessages(
-  messages: Array<{ role: string; content: string }>
-): Promise<Array<{ role: "system" | "user" | "assistant"; content: string }>> {
-  return messages.map((m) => ({
-    role: m.role as "system" | "user" | "assistant",
-    content: m.content,
-  }));
+async function getCloudClient(provider: string, providerId?: string): Promise<{ client: OpenAI; modelName: string } | null> {
+  const settings = await storage.getProviderSettings();
+  const cloudProviders = (settings?.cloudProviders ?? []) as CloudProvider[];
+  const cp = cloudProviders.find((p) => p.id === (providerId ?? provider));
+
+  if (cp) {
+    return { client: new OpenAI({ apiKey: cp.apiKey, baseURL: cp.baseUrl }), modelName: provider };
+  }
+  if (provider === "openai") {
+    return {
+      client: new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      }),
+      modelName: provider,
+    };
+  }
+  return null;
 }
 
 export async function* streamGenerate(
@@ -84,21 +85,12 @@ export async function* streamGenerate(
     const res = await fetch(`${ollamaUrl}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model,
-        messages: await buildOllamaMessages(messages),
-        stream: true,
-      }),
+      body: JSON.stringify({ model, messages, stream: true }),
     });
-
-    if (!res.ok) {
-      const err = await res.text();
-      throw new Error(`Ollama error: ${err}`);
-    }
+    if (!res.ok) throw new Error(`Ollama error: ${await res.text()}`);
 
     const reader = res.body?.getReader();
-    if (!reader) throw new Error("No response body from Ollama");
-
+    if (!reader) throw new Error("No response body");
     const decoder = new TextDecoder();
     let buffer = "";
 
@@ -112,43 +104,20 @@ export async function* streamGenerate(
         if (!line.trim()) continue;
         try {
           const json = JSON.parse(line) as { message?: { content?: string }; done?: boolean };
-          if (json.message?.content) {
-            yield { content: json.message.content, done: false };
-          }
-          if (json.done) {
-            yield { content: "", done: true };
-          }
-        } catch {
-          // skip malformed JSON
-        }
+          if (json.message?.content) yield { content: json.message.content, done: false };
+          if (json.done) yield { content: "", done: true };
+        } catch { /* skip */ }
       }
     }
     return;
   }
 
-  // Cloud provider (OpenAI-compatible or custom)
-  const settings = await storage.getProviderSettings();
-  const cloudProviders = (settings?.cloudProviders ?? []) as CloudProvider[];
-  const cp = cloudProviders.find((p) => p.id === (providerId ?? provider));
+  const cloudInfo = await getCloudClient(provider, providerId);
+  if (!cloudInfo) throw new Error(`Unknown provider: ${provider}`);
 
-  let apiKey: string | undefined;
-  let baseURL: string | undefined;
-
-  if (cp) {
-    apiKey = cp.apiKey;
-    baseURL = cp.baseUrl;
-  } else if (provider === "openai") {
-    apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
-    baseURL = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
-  }
-
-  const client = new OpenAI({ apiKey: apiKey ?? "sk-placeholder", baseURL });
-  const stream = await client.chat.completions.create({
+  const stream = await cloudInfo.client.chat.completions.create({
     model,
-    messages: messages.map((m) => ({
-      role: m.role as "system" | "user" | "assistant",
-      content: m.content,
-    })),
+    messages: messages.map((m) => ({ role: m.role as "system" | "user" | "assistant", content: m.content })),
     stream: true,
     max_completion_tokens: 8192,
   });
@@ -158,4 +127,21 @@ export async function* streamGenerate(
     if (content) yield { content, done: false };
     if (chunk.choices[0]?.finish_reason) yield { content: "", done: true };
   }
+}
+
+export async function generateText(
+  model: string,
+  messages: Array<{ role: string; content: string }>,
+  ollamaUrl?: string
+): Promise<string> {
+  const url = ollamaUrl ?? (await getOllamaUrl());
+  const res = await fetch(`${url}/api/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model, messages, stream: false }),
+    signal: AbortSignal.timeout(30000),
+  });
+  if (!res.ok) throw new Error(`Ollama error: ${await res.text()}`);
+  const data = (await res.json()) as { message?: { content?: string } };
+  return data.message?.content ?? "";
 }

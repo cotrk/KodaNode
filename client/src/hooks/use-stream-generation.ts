@@ -24,12 +24,11 @@ export function useStreamGeneration() {
     setIsStreaming(true);
 
     try {
-      const res = await fetch(api.generations.stream.path, {
+      const res = await fetch(api.generate.stream.path, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(opts),
       });
-
       if (!res.ok) {
         const data = await res.json() as { message?: string };
         throw new Error(data.message ?? "Generation failed");
@@ -37,7 +36,6 @@ export function useStreamGeneration() {
 
       const reader = res.body?.getReader();
       if (!reader) throw new Error("No response stream");
-
       const decoder = new TextDecoder();
       let buf = "";
 
@@ -47,23 +45,15 @@ export function useStreamGeneration() {
         buf += decoder.decode(value, { stream: true });
         const lines = buf.split("\n");
         buf = lines.pop() ?? "";
-
         for (const line of lines) {
           if (!line.startsWith("data: ")) continue;
           try {
-            const event = JSON.parse(line.slice(6)) as {
-              content?: string;
-              done?: boolean;
-              id?: number;
-              error?: string;
-            };
+            const event = JSON.parse(line.slice(6)) as { content?: string; done?: boolean; id?: number; error?: string };
             if (event.error) throw new Error(event.error);
             if (event.content) setResult((r) => r + event.content);
-            if (event.done) {
-              if (event.id) {
-                setSavedId(event.id);
-                qc.invalidateQueries({ queryKey: [api.generations.list.path] });
-              }
+            if (event.done && event.id) {
+              setSavedId(event.id);
+              qc.invalidateQueries({ queryKey: [api.prompts.list.path] });
             }
           } catch (e) {
             if (e instanceof SyntaxError) continue;

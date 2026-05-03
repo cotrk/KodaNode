@@ -1,14 +1,28 @@
-import { pgTable, serial, text, timestamp, jsonb, boolean } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, jsonb, boolean, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 export const generations = pgTable("generations", {
   id: serial("id").primaryKey(),
+  title: text("title").notNull().default("Untitled Prompt"),
   mode: text("mode").notNull(),
+  category: text("category"),
+  tags: text("tags").array().notNull().default([]),
   inputData: jsonb("input_data").notNull(),
   result: text("result"),
+  notes: text("notes"),
+  starred: boolean("starred").notNull().default(false),
   model: text("model"),
   provider: text("provider"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const assistantMessages = pgTable("assistant_messages", {
+  id: serial("id").primaryKey(),
+  role: text("role").notNull(),
+  content: text("content").notNull(),
+  promptId: integer("prompt_id"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -17,6 +31,7 @@ export const providerSettings = pgTable("provider_settings", {
   ollamaUrl: text("ollama_url").notNull().default("http://localhost:11434"),
   defaultModel: text("default_model").notNull().default("llama3.2"),
   defaultProvider: text("default_provider").notNull().default("ollama"),
+  assistantModel: text("assistant_model").notNull().default("llama3.2"),
   cloudProviders: jsonb("cloud_providers").notNull().default([]),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -38,6 +53,16 @@ export const mcpServers = pgTable("mcp_servers", {
 export const insertGenerationSchema = createInsertSchema(generations).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
+});
+
+export const updateGenerationSchema = z.object({
+  title: z.string().min(1).optional(),
+  tags: z.array(z.string()).optional(),
+  notes: z.string().optional(),
+  starred: z.boolean().optional(),
+  category: z.string().optional(),
+  result: z.string().optional(),
 });
 
 export const insertMcpServerSchema = createInsertSchema(mcpServers).omit({
@@ -51,6 +76,7 @@ export const updateProviderSettingsSchema = z.object({
   ollamaUrl: z.string().url().optional(),
   defaultModel: z.string().optional(),
   defaultProvider: z.string().optional(),
+  assistantModel: z.string().optional(),
   cloudProviders: z
     .array(
       z.object({
@@ -66,6 +92,9 @@ export const updateProviderSettingsSchema = z.object({
 
 export type Generation = typeof generations.$inferSelect;
 export type InsertGeneration = z.infer<typeof insertGenerationSchema>;
+export type UpdateGeneration = z.infer<typeof updateGenerationSchema>;
+
+export type AssistantMessage = typeof assistantMessages.$inferSelect;
 
 export type ProviderSettings = typeof providerSettings.$inferSelect;
 export type UpdateProviderSettings = z.infer<typeof updateProviderSettingsSchema>;
