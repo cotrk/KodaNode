@@ -50,7 +50,6 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
   const [result, setResult] = useState<{ imported: number; skipped: number; errors: string[] } | null>(null);
   const [collectionId, setCollectionId] = useState<string>("");
   const [dragActive, setDragActive] = useState(false);
-  const dropDepthRef = useRef(0);
   const importMutation = useImportMarkdown();
   const { data: collections = [] } = useCollections();
   const isSupported = typeof window !== "undefined" && "showDirectoryPicker" in window;
@@ -151,7 +150,6 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    dropDepthRef.current = 0;
     setDragActive(false);
     if (!isSupported) return;
     const files = await readDroppedItems(e.dataTransfer.items);
@@ -176,15 +174,14 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={close} />
           <motion.div initial={{ opacity: 0, scale: 0.96, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }}
-            onDragEnter={(e) => { e.preventDefault(); dropDepthRef.current += 1; setDragActive(true); }}
+            onDragEnter={(e) => { e.preventDefault(); setDragActive(true); }}
             onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
             onDragLeave={(e) => {
               e.preventDefault();
-              dropDepthRef.current -= 1;
-              if (dropDepthRef.current <= 0) setDragActive(false);
+              if (e.currentTarget === e.target) setDragActive(false);
             }}
             onDrop={handleDrop}
-            className="relative w-full max-w-2xl glass-panel rounded-2xl overflow-hidden z-10 shadow-2xl max-h-[85vh] flex flex-col">
+            className="relative w-full max-w-2xl glass-panel rounded-2xl overflow-hidden z-10 shadow-2xl max-h-[85vh] flex flex-col pointer-events-auto">
 
             {/* Header */}
             <div className="flex items-center justify-between p-5 border-b border-border/50">
@@ -197,9 +194,9 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-5">
+            <div className="relative flex-1 overflow-y-auto custom-scrollbar p-5 space-y-5">
               {dragActive && (
-                <div className="absolute inset-0 z-20 m-4 rounded-2xl border-2 border-dashed border-primary bg-primary/10 backdrop-blur-sm flex items-center justify-center">
+                <div className="absolute inset-0 z-20 m-4 rounded-2xl border-2 border-dashed border-primary bg-primary/10 backdrop-blur-sm flex items-center justify-center pointer-events-none">
                   <div className="text-center">
                     <Upload className="w-10 h-10 mx-auto text-primary mb-2" />
                     <p className="font-semibold text-foreground">Drop .md files here</p>
