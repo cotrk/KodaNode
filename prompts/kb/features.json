@@ -1,0 +1,69 @@
+{
+  "title": "Prompt Vault — Feature Reference",
+  "version": "1.0",
+  "purpose": "Describes each major feature, how it works, and which files are involved.",
+  "features": {
+    "prompt_library": {
+      "description": "Grid of prompt cards with search, filter by tag/category/collection/starred, and full CRUD",
+      "ui_files": ["client/src/pages/library.tsx", "client/src/components/prompt-card.tsx"],
+      "api_routes": ["GET /api/prompts", "DELETE /api/prompts/:id"],
+      "notes": "Search is client-side filtered via query param. Tags are stored as a text array. Starred is a boolean toggle."
+    },
+    "prompt_editor": {
+      "description": "Full editor for a single prompt: title, tags, category, notes, markdown body with split-pane preview",
+      "ui_files": ["client/src/pages/library-detail.tsx", "client/src/components/markdown-editor.tsx"],
+      "api_routes": ["GET /api/prompts/:id", "PUT /api/prompts/:id"],
+      "notes": "Markdown editor is split-pane: write on left, rendered preview on right."
+    },
+    "collections": {
+      "description": "Folder-like groups for organizing prompts. Shown in sidebar. Prompts can be dragged into collections.",
+      "ui_files": ["client/src/components/layout.tsx"],
+      "api_routes": ["GET /api/collections", "POST /api/collections", "PUT /api/collections/:id", "DELETE /api/collections/:id"],
+      "drag_and_drop": "window.__setDraggingPromptId is a global bridge between prompt-card.tsx and the collections sidebar in layout.tsx to avoid prop-drilling",
+      "notes": "promptCount on Collection is denormalized and updated when prompts are added/removed."
+    },
+    "vault_folder_watcher": {
+      "description": "Monitors a local folder and automatically imports new/changed .md files as prompts",
+      "ui_files": ["client/src/components/layout.tsx (vault widget)", "client/src/hooks/use-vault.ts"],
+      "api_routes": ["POST /api/import/markdown"],
+      "browser_api": "File System Access API — window.showDirectoryPicker()",
+      "persistence": "IndexedDB: database 'prompt-vault-idb', store 'vault', key 'handle'",
+      "constraints": [
+        "Only works in Chrome and Edge browsers",
+        "Does not work in Replit preview pane",
+        "Does not work in Firefox or Safari",
+        "User must re-grant permission if the handle is revoked"
+      ],
+      "polling": "Checks the directory on an interval and imports files not yet in the DB"
+    },
+    "markdown_import": {
+      "description": "Import one or more .md files via drag-drop or file picker into the prompt library",
+      "ui_files": ["client/src/components/import-modal.tsx"],
+      "api_routes": ["POST /api/import/markdown"],
+      "server_files": ["server/storage.ts (markdown frontmatter parsing)"],
+      "notes": "Frontmatter fields title, tags, category are parsed and mapped to the prompt schema."
+    },
+    "ai_assistant": {
+      "description": "Multi-turn AI chat session using the configured provider and model",
+      "ui_files": ["client/src/pages/assistant.tsx"],
+      "api_routes": ["POST /api/ai/chat", "GET /api/ai/models"],
+      "server_files": ["server/ai-provider.ts"],
+      "providers": ["Ollama (local, no key needed)", "OpenAI", "Anthropic", "Gemini"],
+      "persistence": "Session-only — chat history is NOT stored in the database",
+      "configuration": "Provider, model, and API keys stored in localStorage via Settings page"
+    },
+    "mcp_manager": {
+      "description": "Add and manage MCP (Model Context Protocol) tool servers that extend the AI assistant",
+      "ui_files": ["client/src/pages/mcp-manager.tsx"],
+      "api_routes": ["GET /api/mcp/servers", "POST /api/mcp/servers", "DELETE /api/mcp/servers/:id", "GET /api/mcp/servers/:id/tools"],
+      "server_files": ["server/mcp-client.ts"],
+      "protocol": "JSON-RPC over HTTP"
+    },
+    "settings": {
+      "description": "Configure AI provider, model selection, and API keys",
+      "ui_files": ["client/src/pages/settings.tsx"],
+      "storage": "localStorage only — not persisted to DB",
+      "notes": "Keys are stored client-side. For production use, consider moving to server-side env vars."
+    }
+  }
+}

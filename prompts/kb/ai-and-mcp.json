@@ -1,0 +1,73 @@
+{
+  "title": "Prompt Vault — AI Integration and MCP Reference",
+  "version": "1.0",
+  "purpose": "Details on AI provider configuration, streaming, and MCP server integration.",
+  "ai_providers": {
+    "overview": "The app supports Ollama (local) and three cloud providers. Provider and model are configured in Settings and stored in localStorage.",
+    "providers": {
+      "ollama": {
+        "type": "local",
+        "requires_key": false,
+        "default_port": 11434,
+        "notes": "Must be running locally on the user's machine. No API key needed. Best for privacy."
+      },
+      "openai": {
+        "type": "cloud",
+        "requires_key": true,
+        "key_storage": "localStorage",
+        "notes": "Standard OpenAI API. GPT-4, GPT-4o, etc."
+      },
+      "anthropic": {
+        "type": "cloud",
+        "requires_key": true,
+        "key_storage": "localStorage",
+        "notes": "Claude models. Anthropic API."
+      },
+      "gemini": {
+        "type": "cloud",
+        "requires_key": true,
+        "key_storage": "localStorage",
+        "notes": "Google Gemini API."
+      }
+    },
+    "configuration_storage": "All provider config (provider name, model, API keys) lives in localStorage. Not persisted to DB.",
+    "server_file": "server/ai-provider.ts",
+    "chat_persistence": "Chat history is session-only. Refreshing the page clears it. This is by design."
+  },
+  "ai_chat_flow": {
+    "request": "POST /api/ai/chat with { messages: Message[], provider: string, model: string }",
+    "response": "Streaming text — the server streams tokens back as they are generated",
+    "frontend": "client/src/pages/assistant.tsx handles the stream and appends to local message state",
+    "no_tools": "The base AI chat does not have tool use. MCP tools are separate (see below)."
+  },
+  "mcp_integration": {
+    "protocol": "Model Context Protocol (MCP) — JSON-RPC over HTTP",
+    "purpose": "Allows users to connect external tool servers that extend AI capabilities",
+    "server_file": "server/mcp-client.ts",
+    "operations": [
+      "List registered MCP servers",
+      "Add a new MCP server by name and URL",
+      "Remove a server",
+      "Discover tools available on a specific server"
+    ],
+    "api_routes": [
+      "GET /api/mcp/servers",
+      "POST /api/mcp/servers",
+      "DELETE /api/mcp/servers/:id",
+      "GET /api/mcp/servers/:id/tools"
+    ],
+    "ui_file": "client/src/pages/mcp-manager.tsx",
+    "notes": "Tools discovered from MCP servers are listed but not automatically injected into chat. This is a display/management feature."
+  },
+  "model_listing": {
+    "route": "GET /api/ai/models",
+    "returns": "Available models per provider. For Ollama, queries the local server. For cloud providers, returns a curated list.",
+    "server_file": "server/ai-provider.ts"
+  },
+  "troubleshooting": {
+    "ollama_not_responding": "Verify Ollama is running: open terminal and run 'ollama list'. Default URL is http://localhost:11434.",
+    "cloud_key_error": "Check that the correct API key is set in Settings. Keys are stored in localStorage — inspect it in browser DevTools.",
+    "stream_drops": "Network interruptions can break streaming. The frontend should handle partial streams gracefully.",
+    "wrong_model": "Models list is loaded from GET /api/ai/models. If a model is missing, check server/ai-provider.ts model list."
+  }
+}

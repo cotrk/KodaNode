@@ -1,0 +1,67 @@
+{
+  "title": "Prompt Vault — Architecture Reference",
+  "version": "1.0",
+  "purpose": "Describes the system architecture, layer responsibilities, and design principles for Prompt Vault.",
+  "principles": [
+    "Local-first: the app runs entirely on localhost, no cloud dependency required",
+    "Frontend-first: as much logic as possible lives in React hooks and components",
+    "Thin routes: API handlers only validate input and call storage — no business logic",
+    "Shared schema: all DB tables and Zod schemas live in shared/schema.ts for end-to-end type safety",
+    "Typed routes: all API paths are constants in shared/routes.ts — never hardcoded strings",
+    "Explicit errors: no silent fallbacks — failures surface visibly"
+  ],
+  "layers": {
+    "shared": {
+      "path": "shared/",
+      "files": {
+        "schema.ts": "Drizzle table definitions, Zod insert schemas, TypeScript types for all DB models",
+        "routes.ts": "Typed API route path constants used by both frontend and backend"
+      }
+    },
+    "backend": {
+      "path": "server/",
+      "files": {
+        "index.ts": "Express app entry point, middleware registration",
+        "routes.ts": "All API route handlers — thin, calls storage, validates with Zod",
+        "storage.ts": "DatabaseStorage class — all Drizzle ORM queries and data operations",
+        "ai-provider.ts": "AI provider abstraction — Ollama and cloud streaming",
+        "mcp-client.ts": "MCP JSON-RPC client — server discovery and tool listing",
+        "db.ts": "Drizzle DB connection setup",
+        "vite.ts": "Vite dev server integration — do not modify"
+      }
+    },
+    "frontend": {
+      "path": "client/src/",
+      "files": {
+        "App.tsx": "Router (Wouter), ThemeProvider, QueryClientProvider",
+        "main.tsx": "React entry point",
+        "index.css": "Tailwind base styles and CSS custom properties",
+        "pages/library.tsx": "Prompt library — search, filter, card grid",
+        "pages/library-detail.tsx": "Full prompt editor — title, tags, notes, markdown body",
+        "pages/assistant.tsx": "AI assistant multi-turn chat",
+        "pages/settings.tsx": "AI provider and model configuration",
+        "pages/mcp-manager.tsx": "MCP server add/remove/list",
+        "components/layout.tsx": "Sidebar navigation, collections panel, vault widget",
+        "components/prompt-card.tsx": "Library card — drag, star, action menu",
+        "components/import-modal.tsx": "Markdown file import UI",
+        "components/markdown-editor.tsx": "Split-pane markdown editor",
+        "hooks/use-vault.ts": "Vault folder sync, IndexedDB persistence, polling watcher",
+        "lib/queryClient.ts": "TanStack Query client + apiRequest utility"
+      }
+    }
+  },
+  "data_flow": {
+    "read": "Component → useQuery (TanStack Query) → GET /api/... → routes.ts handler → storage.ts → Drizzle → PostgreSQL",
+    "write": "Component → useMutation → apiRequest POST/PUT/DELETE → routes.ts handler → Zod validate → storage.ts → Drizzle → PostgreSQL → cache invalidate",
+    "vault_sync": "use-vault.ts polling → File System Access API → read .md files → POST /api/import/markdown → storage.ts markdown parse → DB insert"
+  },
+  "feature_order_for_additions": [
+    "1. Define or update table in shared/schema.ts",
+    "2. Run npm run db:push to sync schema",
+    "3. Add method to IStorage interface and DatabaseStorage in server/storage.ts",
+    "4. Add route handler in server/routes.ts",
+    "5. Add route constant in shared/routes.ts",
+    "6. Add useQuery/useMutation hook in frontend component",
+    "7. Build UI"
+  ]
+}

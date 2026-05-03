@@ -1,0 +1,83 @@
+{
+  "title": "Prompt Engineering — Knowledge Base",
+  "version": "1.0",
+  "purpose": "Guidance on designing, structuring, and improving AI prompts. Used by the Prompt Vault Specialist when assisting with prompt creation or review.",
+  "structure_template": {
+    "order": ["Role", "Context", "Responsibilities", "Constraints", "Output Format"],
+    "role": "Define who the AI is. Be specific. A tight persona improves consistency. Example: 'You are a senior TypeScript engineer specializing in Express APIs.'",
+    "context": "Give the model the world it operates in. Include relevant facts, project details, user info, or current state. This is where you load KB files.",
+    "responsibilities": "List what the model is expected to do. Numbered or bulleted. Clear scope.",
+    "constraints": "Explicitly state what the model must NOT do. This is where most failures are prevented.",
+    "output_format": "Specify structure when precision matters: JSON, markdown, numbered list, code block, etc."
+  },
+  "patterns": {
+    "specialist_persona": {
+      "description": "A tightly-scoped expert identity that grounds the model in a specific domain",
+      "best_for": "Technical agents, customer support, domain experts",
+      "example": "You are Prompt Vault Specialist, the technical lead for the Prompt Vault app. You know every file, every design decision, and every implementation detail."
+    },
+    "chain_of_thought": {
+      "description": "Instruct the model to reason step by step before giving a final answer",
+      "best_for": "Debugging, analysis, multi-step problems",
+      "example": "Before answering, think through the problem step by step. Consider what layer the issue is in, what file is responsible, and what the most likely cause is."
+    },
+    "few_shot": {
+      "description": "Provide 2-3 examples of ideal input/output pairs inside the prompt",
+      "best_for": "Format precision, classification, transformation tasks",
+      "example": "Input: 'write a system prompt for a SQL agent' → Output: [structured system prompt with Role, Context, Responsibilities, Constraints]"
+    },
+    "tool_face": {
+      "description": "A small, single-purpose prompt that is loaded dynamically by the main system prompt when a specific function is needed",
+      "best_for": "Modular agents, reducing context bloat, composable capabilities",
+      "example": "A debug-guide.json loaded only when the user reports a bug. The main system prompt references it by name and loads it as needed."
+    },
+    "knowledge_base_injection": {
+      "description": "A structured data file (JSON, YAML, markdown) injected into context when the agent needs domain-specific facts",
+      "best_for": "Technical agents, project specialists, domain experts",
+      "example": "Load schema-and-api.json when the user asks about database structure or API endpoints."
+    },
+    "self_check": {
+      "description": "Instruct the model to verify its own output before delivering it",
+      "best_for": "Code generation, structured output, high-stakes responses",
+      "example": "Before returning your answer, check: Is it accurate? Does it match the project conventions? Is it complete?"
+    }
+  },
+  "quality_signals": {
+    "good": [
+      "Specific — tells the model exactly what to do and what not to do",
+      "Grounded — references real files, real data, real constraints",
+      "Scoped — focused on one domain or task, not everything",
+      "Testable — you can predict what a good output looks like",
+      "Failure-aware — explicitly prevents the most common mistakes"
+    ],
+    "bad": [
+      "Vague — 'be helpful and accurate' with no specifics",
+      "Over-constrained — so many rules the model can't function",
+      "Bloated — too much context that isn't relevant to the current task",
+      "Assumption-heavy — assumes facts not in context",
+      "Silent on failures — no guidance on what to do when uncertain"
+    ]
+  },
+  "iteration_process": [
+    "1. Write first draft with Role + Context + Responsibilities",
+    "2. Test against the ideal case",
+    "3. Test against edge cases and failure modes",
+    "4. Add constraints for each failure mode found",
+    "5. Test again — check that constraints didn't over-restrict",
+    "6. Refine output format if needed",
+    "7. Document what the prompt is for and when to use it"
+  ],
+  "context_management": {
+    "rule": "Only include context that is relevant to the current task",
+    "technique": "Use modular KB files that are loaded on demand rather than one giant system prompt",
+    "token_budget": "Keep system prompts under 2000 tokens for fast models; use KB injection for additional detail",
+    "freshness": "Outdated context is worse than no context — keep KB files up to date when the project changes"
+  },
+  "common_mistakes": [
+    "Writing a role without any constraints — the model fills in gaps with assumptions",
+    "Using vague output instructions — always specify format when structure matters",
+    "Not testing edge cases — prompts often look good until an unusual input breaks them",
+    "Overloading the system prompt — long prompts dilute attention; use KB injection instead",
+    "Forgetting to update prompts when the underlying system changes"
+  ]
+}

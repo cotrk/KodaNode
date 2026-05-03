@@ -1,0 +1,79 @@
+{
+  "title": "Prompt Vault — Debugging Guide",
+  "version": "1.0",
+  "purpose": "Quick triage reference for diagnosing and fixing common issues in Prompt Vault.",
+  "triage_order": [
+    "1. UI/rendering issue → check pages/ and components/",
+    "2. Data not loading → check useQuery key, route constant, and server/routes.ts handler",
+    "3. Schema mismatch → check shared/schema.ts, run npm run db:push",
+    "4. Storage/DB error → check server/storage.ts",
+    "5. AI not responding → check server/ai-provider.ts and provider config in localStorage",
+    "6. MCP tools missing → check server/mcp-client.ts and server URL validity",
+    "7. Vault not syncing → check use-vault.ts and browser (must be Chrome or Edge)"
+  ],
+  "common_issues": [
+    {
+      "symptom": "Prompts not appearing after creation",
+      "likely_cause": "TanStack Query cache not invalidated after mutation",
+      "fix": "Ensure useMutation onSuccess calls queryClient.invalidateQueries with the correct key (e.g. ['/api/prompts'])"
+    },
+    {
+      "symptom": "API returns 400 or 422",
+      "likely_cause": "Zod validation failure on request body",
+      "fix": "Log the request body and compare it against the Zod schema in shared/schema.ts. Check for missing required fields or wrong types."
+    },
+    {
+      "symptom": "DB column does not exist error",
+      "likely_cause": "Schema was updated in shared/schema.ts but DB was not migrated",
+      "fix": "Run: npm run db:push"
+    },
+    {
+      "symptom": "Vault folder button does nothing or permission denied",
+      "likely_cause": "Not using Chrome or Edge, or permission was revoked",
+      "fix": "Use Chrome or Edge. If permission was revoked, the user must click to re-grant access."
+    },
+    {
+      "symptom": "Vault handle persists but no sync",
+      "likely_cause": "IndexedDB handle exists but permission query returns 'prompt'",
+      "fix": "Check use-vault.ts — the hook re-requests permission on load. If denied, clears the handle and prompts user to re-select."
+    },
+    {
+      "symptom": "Drag to collection not working",
+      "likely_cause": "window.__setDraggingPromptId not being set or read correctly",
+      "fix": "Check prompt-card.tsx onDragStart sets the global, and layout.tsx collection drop zone reads it."
+    },
+    {
+      "symptom": "AI chat returns nothing or errors",
+      "likely_cause": "Provider not configured, missing API key, or Ollama not running",
+      "fix": "Check localStorage for provider/model settings. For Ollama, verify it's running locally on port 11434. For cloud providers, verify key is set."
+    },
+    {
+      "symptom": "Import modal shows no files",
+      "likely_cause": "File picker filtered to .md only; user may have navigated to wrong folder",
+      "fix": "Confirm the folder contains .md files. Check import-modal.tsx file picker accept attribute."
+    },
+    {
+      "symptom": "MCP tools list empty",
+      "likely_cause": "Server URL is wrong or server is not running",
+      "fix": "Check the MCP server URL in mcp-manager.tsx. Test the URL directly to confirm the server responds."
+    },
+    {
+      "symptom": "Frontend shows wrong data after edit",
+      "likely_cause": "Stale TanStack Query cache",
+      "fix": "Check that the relevant query key is being invalidated after the mutation in the useMutation onSuccess callback."
+    }
+  ],
+  "useful_commands": {
+    "start_dev": "npm run dev",
+    "push_schema": "npm run db:push",
+    "check_logs": "View the workflow console in the Replit interface",
+    "check_db": "Use the database skill or psql via DATABASE_URL env var"
+  },
+  "never_do": [
+    "Do not modify vite.ts or vite.config.ts unless absolutely necessary",
+    "Do not add business logic to route handlers in server/routes.ts",
+    "Do not query the database directly from routes — use server/storage.ts",
+    "Do not hardcode API route strings — always use shared/routes.ts constants",
+    "Do not persist AI chat messages to the database"
+  ]
+}

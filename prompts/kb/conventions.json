@@ -1,0 +1,56 @@
+{
+  "title": "Prompt Vault — Coding Conventions",
+  "version": "1.0",
+  "purpose": "Coding standards and conventions to preserve when adding or modifying code in Prompt Vault.",
+  "hard_rules": [
+    "Never add business logic to route handlers in server/routes.ts — keep routes thin",
+    "Never query the database directly from routes — always use server/storage.ts",
+    "Never hardcode API route path strings — use constants from shared/routes.ts",
+    "Never persist AI chat messages to the database — session-only",
+    "Never modify vite.ts or vite.config.ts without a very strong reason",
+    "Never edit package.json scripts — ask the user first",
+    "Never use process.env on the frontend — use import.meta.env.VITE_* instead"
+  ],
+  "patterns": {
+    "adding_a_feature": [
+      "1. Define or update table in shared/schema.ts",
+      "2. Run npm run db:push to migrate",
+      "3. Add method to IStorage interface in server/storage.ts",
+      "4. Implement method in DatabaseStorage class",
+      "5. Add route constant in shared/routes.ts",
+      "6. Add route handler in server/routes.ts",
+      "7. Build frontend hook and UI"
+    ],
+    "data_fetching": "Always use TanStack Query useQuery with typed generics and route constants as keys",
+    "mutations": "Use useMutation with apiRequest from lib/queryClient. Always invalidate cache on success.",
+    "cache_keys": "Use array keys for hierarchical invalidation: ['/api/prompts', id] not ['/api/prompts/${id}']",
+    "forms": "Use shadcn Form + react-hook-form + zodResolver. Always provide defaultValues.",
+    "imports": "Use @ prefix paths for src imports. @assets/ for static files. @shared/ for shared code.",
+    "icons": "lucide-react for UI icons. react-icons/si for company/brand logos.",
+    "routing": "Use Wouter Link component or useLocation hook — never window.location directly"
+  },
+  "naming": {
+    "pages": "PascalCase components in client/src/pages/",
+    "hooks": "use-kebab-case.ts in client/src/hooks/",
+    "components": "kebab-case.tsx in client/src/components/",
+    "server_files": "kebab-case.ts in server/",
+    "db_columns": "camelCase in schema.ts"
+  },
+  "testing_ids": {
+    "rule": "Add data-testid to all interactive and meaningful display elements",
+    "interactive": "Pattern: {action}-{target} — e.g. button-submit, input-search, link-library",
+    "display": "Pattern: {type}-{content} — e.g. text-title, status-sync, badge-tag",
+    "dynamic": "Pattern: {type}-{description}-{id} — e.g. card-prompt-${id}, row-collection-${index}"
+  },
+  "theming": {
+    "dark_mode": "Use explicit light/dark class variants when not using tailwind config utility classes",
+    "css_variables": "Define custom properties as H S% L% (space-separated, no hsl() wrapper) in index.css",
+    "shadcn_components": "Always use @ path imports for shadcn components from components/ui/"
+  },
+  "state_management": {
+    "server_state": "TanStack Query — all data from the backend",
+    "local_ui_state": "React useState or useReducer within components",
+    "persistent_local": "localStorage for settings/preferences. IndexedDB for binary handles (vault).",
+    "global_bridge": "window.__setDraggingPromptId — intentional global for drag state across component trees"
+  }
+}
