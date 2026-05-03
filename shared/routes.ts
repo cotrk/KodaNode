@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { insertMcpServerSchema, updateProviderSettingsSchema, updateGenerationSchema } from "./schema";
+import { insertMcpServerSchema, updateProviderSettingsSchema, updateGenerationSchema, insertCollectionSchema, updateCollectionSchema, importMarkdownSchema } from "./schema";
 
 export const errorSchemas = {
   validation: z.object({ message: z.string(), field: z.string().optional() }),
@@ -8,24 +8,24 @@ export const errorSchemas = {
 };
 
 export const createPersonaSchema = z.object({
-  roleName: z.string().min(1, "Role name is required"),
-  purpose: z.string().min(1, "Purpose is required"),
-  userProfile: z.string().min(1, "User profile is required"),
-  communicationStyle: z.string().min(1, "Communication style is required"),
-  constraints: z.string().min(1, "Constraints are required"),
+  roleName: z.string().min(1),
+  purpose: z.string().min(1),
+  userProfile: z.string().min(1),
+  communicationStyle: z.string().min(1),
+  constraints: z.string().min(1),
 });
 
 export const refactorPromptSchema = z.object({
-  currentPrompt: z.string().min(1, "Current prompt is required"),
-  issues: z.string().min(1, "Issues are required"),
-  improvements: z.string().min(1, "Improvements are required"),
+  currentPrompt: z.string().min(1),
+  issues: z.string().min(1),
+  improvements: z.string().min(1),
   targetLlm: z.string().optional(),
 });
 
 export const createTemplateSchema = z.object({
-  personaType: z.string().min(1, "Persona type is required"),
-  variables: z.string().min(1, "Variables are required"),
-  reusability: z.string().min(1, "Reusability requirements are required"),
+  personaType: z.string().min(1),
+  variables: z.string().min(1),
+  reusability: z.string().min(1),
 });
 
 export const generateStreamSchema = z.object({
@@ -44,103 +44,48 @@ export const assistantChatSchema = z.object({
 
 export const api = {
   prompts: {
-    list: {
-      method: "GET" as const,
-      path: "/api/prompts" as const,
-      responses: { 200: z.array(z.any()) },
-    },
-    get: {
-      method: "GET" as const,
-      path: "/api/prompts/:id" as const,
-      responses: { 200: z.any(), 404: errorSchemas.notFound },
-    },
-    update: {
-      method: "PUT" as const,
-      path: "/api/prompts/:id" as const,
-      input: updateGenerationSchema,
-      responses: { 200: z.any(), 404: errorSchemas.notFound },
-    },
-    delete: {
-      method: "DELETE" as const,
-      path: "/api/prompts/:id" as const,
-      responses: { 204: z.void(), 404: errorSchemas.notFound },
-    },
-    toggleStar: {
-      method: "POST" as const,
-      path: "/api/prompts/:id/star" as const,
-      responses: { 200: z.any() },
-    },
-    autoTitle: {
-      method: "POST" as const,
-      path: "/api/prompts/:id/auto-title" as const,
-      responses: { 200: z.object({ title: z.string() }) },
-    },
-    autoTags: {
-      method: "POST" as const,
-      path: "/api/prompts/:id/auto-tags" as const,
-      responses: { 200: z.object({ tags: z.array(z.string()) }) },
-    },
+    list: { method: "GET" as const, path: "/api/prompts" as const },
+    get: { method: "GET" as const, path: "/api/prompts/:id" as const },
+    update: { method: "PUT" as const, path: "/api/prompts/:id" as const },
+    delete: { method: "DELETE" as const, path: "/api/prompts/:id" as const },
+    toggleStar: { method: "POST" as const, path: "/api/prompts/:id/star" as const },
+    autoTitle: { method: "POST" as const, path: "/api/prompts/:id/auto-title" as const },
+    autoTags: { method: "POST" as const, path: "/api/prompts/:id/auto-tags" as const },
+    moveCollection: { method: "POST" as const, path: "/api/prompts/:id/collection" as const },
+  },
+  collections: {
+    list: { method: "GET" as const, path: "/api/collections" as const },
+    create: { method: "POST" as const, path: "/api/collections" as const },
+    update: { method: "PUT" as const, path: "/api/collections/:id" as const },
+    delete: { method: "DELETE" as const, path: "/api/collections/:id" as const },
+  },
+  import: {
+    markdown: { method: "POST" as const, path: "/api/import/markdown" as const },
   },
   generate: {
-    stream: {
-      method: "POST" as const,
-      path: "/api/generate/stream" as const,
-      input: generateStreamSchema,
-      responses: { 200: z.any(), 400: errorSchemas.validation, 500: errorSchemas.internal },
-    },
+    stream: { method: "POST" as const, path: "/api/generate/stream" as const },
   },
   assistant: {
-    messages: {
-      method: "GET" as const,
-      path: "/api/assistant/messages" as const,
-      responses: { 200: z.array(z.any()) },
-    },
-    chat: {
-      method: "POST" as const,
-      path: "/api/assistant/chat" as const,
-      input: assistantChatSchema,
-      responses: { 200: z.any() },
-    },
-    clear: {
-      method: "DELETE" as const,
-      path: "/api/assistant/messages" as const,
-      responses: { 204: z.void() },
-    },
+    messages: { method: "GET" as const, path: "/api/assistant/messages" as const },
+    chat: { method: "POST" as const, path: "/api/assistant/chat" as const },
+    clear: { method: "DELETE" as const, path: "/api/assistant/messages" as const },
   },
   models: {
-    list: {
-      method: "GET" as const,
-      path: "/api/models" as const,
-      responses: { 200: z.array(z.object({ id: z.string(), name: z.string(), provider: z.string(), providerId: z.string().optional() })) },
-    },
+    list: { method: "GET" as const, path: "/api/models" as const },
   },
   settings: {
-    get: {
-      method: "GET" as const,
-      path: "/api/settings" as const,
-      responses: { 200: z.any() },
-    },
-    update: {
-      method: "PUT" as const,
-      path: "/api/settings" as const,
-      input: updateProviderSettingsSchema,
-      responses: { 200: z.any() },
-    },
-    testOllama: {
-      method: "POST" as const,
-      path: "/api/settings/test-ollama" as const,
-      input: z.object({ url: z.string().url() }),
-      responses: { 200: z.object({ ok: z.boolean(), message: z.string() }) },
-    },
+    get: { method: "GET" as const, path: "/api/settings" as const },
+    update: { method: "PUT" as const, path: "/api/settings" as const },
+    testOllama: { method: "POST" as const, path: "/api/settings/test-ollama" as const },
   },
   mcp: {
-    list: { method: "GET" as const, path: "/api/mcp-servers" as const, responses: { 200: z.array(z.any()) } },
-    get: { method: "GET" as const, path: "/api/mcp-servers/:id" as const, responses: { 200: z.any() } },
-    create: { method: "POST" as const, path: "/api/mcp-servers" as const, input: insertMcpServerSchema, responses: { 201: z.any() } },
-    update: { method: "PUT" as const, path: "/api/mcp-servers/:id" as const, input: insertMcpServerSchema.partial(), responses: { 200: z.any() } },
-    delete: { method: "DELETE" as const, path: "/api/mcp-servers/:id" as const, responses: { 204: z.void() } },
-    test: { method: "POST" as const, path: "/api/mcp-servers/:id/test" as const, responses: { 200: z.object({ ok: z.boolean(), tools: z.array(z.any()), message: z.string() }) } },
-    allTools: { method: "GET" as const, path: "/api/mcp-tools" as const, responses: { 200: z.array(z.any()) } },
+    list: { method: "GET" as const, path: "/api/mcp-servers" as const },
+    get: { method: "GET" as const, path: "/api/mcp-servers/:id" as const },
+    create: { method: "POST" as const, path: "/api/mcp-servers" as const },
+    update: { method: "PUT" as const, path: "/api/mcp-servers/:id" as const },
+    delete: { method: "DELETE" as const, path: "/api/mcp-servers/:id" as const },
+    test: { method: "POST" as const, path: "/api/mcp-servers/:id/test" as const },
+    allTools: { method: "GET" as const, path: "/api/mcp-tools" as const },
   },
 };
 
@@ -153,3 +98,5 @@ export function buildUrl(path: string, params?: Record<string, string | number>)
   }
   return url;
 }
+
+export { importMarkdownSchema, insertCollectionSchema, updateCollectionSchema };

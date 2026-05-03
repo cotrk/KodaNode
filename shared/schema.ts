@@ -2,6 +2,13 @@ import { pgTable, serial, text, timestamp, jsonb, boolean, integer } from "drizz
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+export const collections = pgTable("collections", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  color: text("color").notNull().default("#8b5cf6"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const generations = pgTable("generations", {
   id: serial("id").primaryKey(),
   title: text("title").notNull().default("Untitled Prompt"),
@@ -14,6 +21,8 @@ export const generations = pgTable("generations", {
   starred: boolean("starred").notNull().default(false),
   model: text("model"),
   provider: text("provider"),
+  collectionId: integer("collection_id"),
+  sourceFile: text("source_file"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -63,7 +72,11 @@ export const updateGenerationSchema = z.object({
   starred: z.boolean().optional(),
   category: z.string().optional(),
   result: z.string().optional(),
+  collectionId: z.number().nullable().optional(),
 });
+
+export const insertCollectionSchema = createInsertSchema(collections).omit({ id: true, createdAt: true });
+export const updateCollectionSchema = insertCollectionSchema.partial();
 
 export const insertMcpServerSchema = createInsertSchema(mcpServers).omit({
   id: true,
@@ -78,16 +91,17 @@ export const updateProviderSettingsSchema = z.object({
   defaultProvider: z.string().optional(),
   assistantModel: z.string().optional(),
   cloudProviders: z
-    .array(
-      z.object({
-        id: z.string(),
-        name: z.string(),
-        baseUrl: z.string(),
-        apiKey: z.string(),
-        models: z.array(z.string()),
-      })
-    )
+    .array(z.object({ id: z.string(), name: z.string(), baseUrl: z.string(), apiKey: z.string(), models: z.array(z.string()) }))
     .optional(),
+});
+
+export const importMarkdownSchema = z.object({
+  files: z.array(z.object({
+    name: z.string(),
+    relativePath: z.string(),
+    content: z.string(),
+  })),
+  collectionId: z.number().optional(),
 });
 
 export type Generation = typeof generations.$inferSelect;
@@ -95,6 +109,10 @@ export type InsertGeneration = z.infer<typeof insertGenerationSchema>;
 export type UpdateGeneration = z.infer<typeof updateGenerationSchema>;
 
 export type AssistantMessage = typeof assistantMessages.$inferSelect;
+
+export type Collection = typeof collections.$inferSelect;
+export type InsertCollection = z.infer<typeof insertCollectionSchema>;
+export type UpdateCollection = z.infer<typeof updateCollectionSchema>;
 
 export type ProviderSettings = typeof providerSettings.$inferSelect;
 export type UpdateProviderSettings = z.infer<typeof updateProviderSettingsSchema>;

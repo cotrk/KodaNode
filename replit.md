@@ -1,6 +1,6 @@
 # Prompt Vault
 
-A full-stack AI Prompt Knowledge Base for managing, cataloging, and archiving all your AI prompt creations. Built on Node/Express/React/PostgreSQL with native Ollama (local LLM) integration, an AI Assistant, and MCP (Model Context Protocol) support.
+A full-stack AI Prompt Knowledge Base for managing, cataloging, and archiving all your AI prompt creations. Built for local desktop use (Windows 11 / multi-drive) with native markdown support, Ollama integration, an AI Assistant, and MCP tool support.
 
 ## Stack
 
@@ -9,83 +9,111 @@ A full-stack AI Prompt Knowledge Base for managing, cataloging, and archiving al
 - **Database**: PostgreSQL via Drizzle ORM
 - **AI**: Ollama (local), any OpenAI-compatible cloud endpoint
 - **Protocol**: MCP (Model Context Protocol) via JSON-RPC 2.0
+- **File System**: File System Access API (Chrome/Edge) for vault folder sync and .md import/export
 
 ## Architecture
 
 ### Shared (`shared/`)
-- `schema.ts` — Drizzle tables: `generations` (prompt library), `assistantMessages`, `providerSettings` (with `assistantModel`), `mcpServers`. Zod insert/update schemas and TypeScript types.
-- `routes.ts` — Full typed API contract with `buildUrl` helper.
+- `schema.ts` — Drizzle tables: `collections`, `generations` (with `collectionId`, `sourceFile`), `assistantMessages`, `providerSettings` (with `assistantModel`), `mcpServers`
+- `routes.ts` — Full typed API contract with `buildUrl` helper
 
 ### Server (`server/`)
 - `index.ts` — Express server bootstrap
 - `db.ts` — Drizzle + postgres connection
-- `storage.ts` — `DatabaseStorage` implements `IStorage` with full CRUD for prompts, assistant messages, settings, MCP servers
-- `routes.ts` — All API handlers: prompts, streaming generation, assistant chat (SSE), auto-title/tags, settings, MCP
-- `ai-provider.ts` — `listModels()`, `testOllama()`, `streamGenerate()` (Ollama REST + OpenAI SDK cloud), `generateText()` for non-streaming AI calls
-- `mcp-client.ts` — `discoverToolsStdio()`, `discoverToolsHttp()`, `buildMcpContext()` for injecting tool context into generation prompts
+- `storage.ts` — `DatabaseStorage` implements `IStorage`. Includes `bulkImportMarkdown()` with YAML frontmatter parser, `getCollections()`, `createCollection()`, `updateCollection()`, `deleteCollection()`
+- `routes.ts` — All API handlers: prompts, streaming generation, assistant chat (SSE), auto-title/tags, collections CRUD, markdown import/export, settings, MCP
+- `ai-provider.ts` — `listModels()`, `testOllama()`, `streamGenerate()` (Ollama + OpenAI SDK), `generateText()`
+- `mcp-client.ts` — MCP tool discovery and context injection
 - `vite.ts` — Vite dev server integration
 
 ### Client (`client/src/`)
 - `App.tsx` — Routes: `/`, `/library`, `/library/:id`, `/assistant`, `/create`, `/refactor`, `/template`, `/settings`, `/mcp`
-- `components/layout.tsx` — Sidebar: My Library, AI Assistant (primary); Create section (Persona Architect, Refactor, Template Builder); Configuration section (MCP, AI Providers). Branding: "Prompt Vault".
-- `components/model-selector.tsx` — Live model dropdown for generation (Ollama + cloud)
-- `components/streaming-result.tsx` — SSE streaming display with cursor + copy button
-- `hooks/use-prompts.ts` — Library CRUD: `usePrompts`, `usePrompt`, `useUpdatePrompt`, `useDeletePrompt`, `useToggleStar`, `useAutoTitle`, `useAutoTags`
-- `hooks/use-assistant.ts` — `useAssistantMessages`, `useAssistantChat` (SSE stream), `useClearAssistant`
-- `hooks/use-stream-generation.ts` — SSE generation hook, saves to DB on done, returns `savedId`
-- `hooks/use-settings.ts` — Settings CRUD + `useSelectedModel()` with localStorage persistence
-- `hooks/use-mcp.ts` — MCP server CRUD + test mutations
-- `pages/library.tsx` — Main library: search, mode filter, starred filter, sort, grid/list view, star/delete inline
-- `pages/library-detail.tsx` — Prompt detail: inline title edit, tag add/remove, notes edit, AI actions (auto-title, auto-tags), input params view
-- `pages/assistant.tsx` — AI chat powered by local Ollama `assistantModel`; streaming, persistent history, clear chat, suggested prompts
-- `pages/create.tsx` — Persona Architect form + streaming + post-save banner (auto-name, auto-tags, view in library)
-- `pages/refactor.tsx` — Refactor Prompt form + streaming + post-save banner
-- `pages/template.tsx` — Template Builder form + streaming + post-save banner
-- `pages/settings.tsx` — Ollama URL, default generation model, **AI assistant model** (separate), cloud provider management
-- `pages/mcp-manager.tsx` — MCP server list, add stdio/http servers, test & discover tools, enable/disable
+- `components/layout.tsx` — Sidebar with collections (drag-to-collect, CRUD inline), vault status panel, "My Library", AI Assistant, Create tools, Configuration. Handles drag-and-drop global state.
+- `components/markdown-editor.tsx` — Split-pane editor: Edit / Split / Preview modes, auto-save with debounce, synchronized scroll between panes
+- `components/import-modal.tsx` — Import .md files via File System Access API (individual files or folder scan, recursive up to 4 levels), collection assignment, import results
+- `components/model-selector.tsx` — Live model dropdown for generation
+- `components/streaming-result.tsx` — SSE streaming display
+- `hooks/use-prompts.ts` — Library CRUD: usePrompts, usePrompt, useUpdatePrompt, useDeletePrompt, useToggleStar, useAutoTitle, useAutoTags
+- `hooks/use-collections.ts` — useCollections, useCreateCollection, useUpdateCollection, useDeleteCollection, useMoveToCollection, useImportMarkdown
+- `hooks/use-vault.ts` — Vault folder management via File System Access API + IndexedDB persistence. Polls every 30s for new .md files. Recursive directory scan up to 4 levels deep. Works across multiple drives.
+- `hooks/use-assistant.ts` — Assistant streaming chat
+- `hooks/use-stream-generation.ts` — SSE generation with auto-save
+- `hooks/use-settings.ts` — Settings CRUD + model persistence
+- `hooks/use-mcp.ts` — MCP server CRUD
+- `pages/library.tsx` — Main library: search, mode filter, starred, sort, grid/list, import modal trigger, export all JSON, export individual .md, drag-to-collection on cards
+- `pages/library-detail.tsx` — Full-page markdown editor (split-pane), inline title/tags/notes editing, collection selector, AI actions (auto-name, auto-tags), export .md
+- `pages/assistant.tsx` — AI chat powered by local Ollama `assistantModel`
+- `pages/create.tsx`, `refactor.tsx`, `template.tsx` — Creation tools with post-save AI banner
+- `pages/settings.tsx` — Ollama URL, generation model, assistant model, cloud providers
+- `pages/mcp-manager.tsx` — MCP server management
 
 ## API Routes
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/models` | All models (Ollama + cloud) |
-| GET | `/api/settings` | Provider settings |
-| PUT | `/api/settings` | Update Ollama URL, default model, assistant model, cloud providers |
-| POST | `/api/settings/test-ollama` | Test Ollama connectivity |
-| GET | `/api/prompts` | Library list (search, mode, starred, tag filters) |
+| GET | `/api/models` | All models |
+| GET/PUT | `/api/settings` | Provider settings |
+| POST | `/api/settings/test-ollama` | Test Ollama |
+| GET | `/api/collections` | List collections |
+| POST | `/api/collections` | Create collection |
+| PUT | `/api/collections/:id` | Rename / recolor |
+| DELETE | `/api/collections/:id` | Delete (prompts kept, unassigned) |
+| GET | `/api/prompts` | Library list (search, mode, starred, tag, collectionId filters) |
 | GET | `/api/prompts/:id` | Single prompt |
-| PUT | `/api/prompts/:id` | Update title/tags/notes/starred/category |
-| DELETE | `/api/prompts/:id` | Delete prompt |
+| PUT | `/api/prompts/:id` | Update title/tags/notes/starred/result/collectionId |
+| DELETE | `/api/prompts/:id` | Delete |
 | POST | `/api/prompts/:id/star` | Toggle star |
-| POST | `/api/prompts/:id/auto-title` | AI-generate title using `assistantModel` |
-| POST | `/api/prompts/:id/auto-tags` | AI-generate tags using `assistantModel` |
-| POST | `/api/generate/stream` | SSE streaming generation (persona/refactor/template) |
-| GET | `/api/assistant/messages` | Persistent chat history |
-| POST | `/api/assistant/chat` | SSE streaming assistant response |
-| DELETE | `/api/assistant/messages` | Clear chat history |
-| GET | `/api/mcp-servers` | List MCP servers |
-| POST | `/api/mcp-servers` | Add MCP server |
-| PUT | `/api/mcp-servers/:id` | Update MCP server |
-| DELETE | `/api/mcp-servers/:id` | Delete MCP server |
-| POST | `/api/mcp-servers/:id/test` | Connect & discover tools |
-| GET | `/api/mcp-tools` | All enabled MCP tools |
+| POST | `/api/prompts/:id/collection` | Move to collection |
+| POST | `/api/prompts/:id/auto-title` | AI auto-name |
+| POST | `/api/prompts/:id/auto-tags` | AI auto-tags |
+| GET | `/api/prompts/:id/export` | Download as .md with frontmatter |
+| POST | `/api/import/markdown` | Bulk import .md files (parses frontmatter) |
+| POST | `/api/generate/stream` | SSE streaming generation |
+| GET/POST/DELETE | `/api/assistant/*` | Assistant chat |
+| GET/POST/PUT/DELETE | `/api/mcp-servers/*` | MCP server management |
 
 ## Key Features
 
-1. **Prompt Library** — Browse all saved prompts by mode, search, tag, or starred. Grid/list view with sort.
-2. **Prompt Detail** — Inline edit title, tags, notes. AI actions: auto-name and suggest tags using local Ollama. Copy prompt content.
-3. **AI Assistant** — Native Ollama chat (separate `assistantModel` setting). Library-aware, streaming, persistent per-session history. Helps name, tag, organize, and improve prompts.
-4. **Post-generation workflow** — After every generation, a banner offers one-click AI auto-naming, tag suggestion, and "View in Library" shortcuts.
-5. **Create Tools** — Persona Architect, Refactor Prompt, Template Builder. All stream via SSE and auto-save to the library.
-6. **Ollama-native** — Auto-discovers local models. Two separate model selectors: one for generation, one for the assistant.
-7. **Cloud providers** — Any OpenAI-compatible endpoint with custom API key and model list.
-8. **MCP Servers** — stdio and HTTP servers. Tool discovery injected into every generation system prompt.
+1. **Prompt Library** — Browse, search, filter by mode/tags/collection/starred, grid/list view
+2. **In-place Markdown Editor** — Split-pane (Edit | Split | Preview) with auto-save. Full markdown editing of any prompt.
+3. **Markdown Import** — File System Access API: pick individual .md files or scan entire folders recursively (up to 4 levels). Parses YAML frontmatter (title, tags, mode, starred). Duplicate detection via `sourceFile` path.
+4. **Markdown Export** — Export any prompt as a `.md` file with YAML frontmatter. Bulk export library as JSON.
+5. **Vault Folder** — Connect a folder on any drive. Auto-syncs every 30 seconds. Handle persisted in IndexedDB across sessions. Supports multi-drive setups (D:\, E:\, etc). Requires Chrome or Edge.
+6. **Collections** — Named, colored folder groups. Create/rename/delete inline in sidebar. Drag prompt cards onto collection names to move them. Filter library by collection.
+7. **AI Assistant** — Native Ollama chat with streaming, persistent history, library-aware system prompt.
+8. **Auto-name & Auto-tag** — Uses `assistantModel` to generate titles and tags for any prompt.
+9. **Ollama-native** — Auto-discovers local models. Separate model settings for generation vs assistant.
+10. **Cloud providers** — Any OpenAI-compatible endpoint.
+11. **MCP Servers** — Tool discovery injected into generation system prompts.
 
-## Running
+## Markdown Frontmatter Format
 
-The `Start application` workflow runs `npm run dev` (Express + Vite on port 5000).  
-Schema managed with `npm run db:push`.
+Exported prompts use this format:
+```markdown
+---
+title: "My Prompt Title"
+tags: [react, typescript, code-review]
+mode: create
+starred: true
+created: 2024-01-15T10:30:00Z
+---
+
+[Prompt content here]
+```
+
+## File System Access API Notes
+
+- Requires Chrome or Edge (not Firefox)
+- Works on Windows 11 with any drive letter (C:\, D:\, E:\, etc.)
+- Vault handle persisted in IndexedDB (re-authorized on next visit)
+- Directory scanning is recursive up to 4 levels deep
+- Poll interval: 30 seconds for new/changed files
 
 ## DB Schema Note
 
-The library table is physically named `generations` in PostgreSQL (for migration continuity) but is conceptually the "prompts" library throughout the UI and API.
+Library table is physically named `generations` in PostgreSQL. Collections are in the `collections` table. `sourceFile` tracks import path for duplicate prevention.
+
+## Running
+
+`Start application` workflow runs `npm run dev` (Express + Vite on port 5000).
+Schema managed with `npm run db:push`.
