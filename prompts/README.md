@@ -2,9 +2,28 @@
 
 This directory contains the specialist system prompts and modular knowledge base files for the Prompt Vault AI agent.
 
+## Project Folder Structure
+
+Each project can have its own nested prompt pack:
+
+```text
+prompts/
+  projects/
+    prompt-vault/
+      system/
+        system-prompt.md
+        system-prompt-short.md
+      tools/
+        tool-face-placeholder.json
+      kb/
+        project-overview.json
+```
+
+This is the preferred pattern for future project-specific prompt packs.
+
 ## Files
 
-### System Prompts
+### Root System Prompts
 
 | File | Purpose |
 |---|---|
@@ -24,6 +43,15 @@ Small, focused JSON files loaded on demand when the agent needs depth on a speci
 | `kb/prompt-engineering.json` | Prompt structure templates, patterns, quality signals, iteration process |
 | `kb/conventions.json` | Hard rules, naming conventions, patterns, state management approach |
 | `kb/ai-and-mcp.json` | AI provider config, streaming, MCP server integration details |
+
+### Nested Project Pack
+
+| File | Purpose |
+|---|---|
+| `projects/prompt-vault/system/system-prompt.md` | Placeholder for the project-level master system prompt |
+| `projects/prompt-vault/system/system-prompt-short.md` | Placeholder for the compact production prompt |
+| `projects/prompt-vault/tools/tool-face-placeholder.json` | Placeholder for future tool-face prompts |
+| `projects/prompt-vault/kb/project-overview.json` | Placeholder for project-level KB content |
 
 ## How to Use
 
