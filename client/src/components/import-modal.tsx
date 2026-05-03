@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, FolderOpen, FileText, Upload, Check, AlertCircle,
@@ -27,7 +27,7 @@ async function scanDirectoryHandle(
 ): Promise<FilePreview[]> {
   if (depth > maxDepth) return [];
   const files: FilePreview[] = [];
-  for await (const [name, entry] of handle.entries()) {
+  for await (const [name, entry] of (handle as unknown as AsyncIterable<[string, FileSystemHandle]>)) {
     if (entry.kind === "file" && name.toLowerCase().endsWith(".md")) {
       const file = await (entry as FileSystemFileHandle).getFile();
       const content = await file.text();
@@ -49,17 +49,62 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
   const [scanning, setScanning] = useState(false);
   const [result, setResult] = useState<{ imported: number; skipped: number; errors: string[] } | null>(null);
   const [collectionId, setCollectionId] = useState<string>("");
+  const [dragActive, setDragActive] = useState(false);
+  const dropDepthRef = useRef(0);
   const importMutation = useImportMarkdown();
   const { data: collections = [] } = useCollections();
   const isSupported = typeof window !== "undefined" && "showDirectoryPicker" in window;
 
+  const pickOpenFilePicker = async () => {
+    const w = window as Window & {
+      showOpenFilePicker?: (options: {
+        multiple?: boolean;
+        types?: Array<{ description: string; accept: Record<string, string[]> }>;
+      }) => Promise<FileSystemFileHandle[]>;
+    };
+    return w.showOpenFilePicker?.({
+      multiple: true,
+      types: [{ description: "Markdown files", accept: { "text/markdown": [".md"] } }],
+    });
+  };
+
+  const pickDirectoryPicker = async () => {
+    const w = window as Window & {
+      showDirectoryPicker?: (options?: { mode?: "read" | "readwrite" }) => Promise<FileSystemDirectoryHandle>;
+    };
+    return w.showDirectoryPicker?.({ mode: "read" });
+  };
+
+  const readDroppedItems = useCallback(async (items: DataTransferItemList) => {
+    const files: FilePreview[] = [];
+    const entries = Array.from(items);
+    for (const item of entries) {
+      const entry = (item as DataTransferItem & { getAsFileSystemHandle?: () => Promise<FileSystemHandle | null> }).getAsFileSystemHandle
+        ? await (item as DataTransferItem & { getAsFileSystemHandle: () => Promise<FileSystemHandle | null> }).getAsFileSystemHandle()
+        : null;
+      if (entry?.kind === "file") {
+        const file = await (entry as FileSystemFileHandle).getFile();
+        if (file.name.toLowerCase().endsWith(".md")) {
+          files.push({ name: file.name, relativePath: file.name, content: await file.text(), selected: true });
+        }
+      } else if (entry?.kind === "directory") {
+        const nested = await scanDirectoryHandle(entry as FileSystemDirectoryHandle);
+        files.push(...nested);
+      } else {
+        const file = item.kind === "file" ? item.getAsFile() : null;
+        if (file && file.name.toLowerCase().endsWith(".md")) {
+          files.push({ name: file.name, relativePath: file.name, content: await file.text(), selected: true });
+        }
+      }
+    }
+    return files;
+  }, []);
+
   const handleFiles = useCallback(async () => {
     if (!isSupported) return;
     try {
-      const handles = await window.showOpenFilePicker({
-        multiple: true,
-        types: [{ description: "Markdown files", accept: { "text/markdown": [".md"] } }],
-      });
+      const handles = await pickOpenFilePicker();
+      if (!handles) return;
       const files: FilePreview[] = [];
       for (const h of handles) {
         const file = await h.getFile();
@@ -77,7 +122,8 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
     if (!isSupported) return;
     setScanning(true);
     try {
-      const handle = await window.showDirectoryPicker({ mode: "read" });
+      const handle = await pickDirectoryPicker();
+      if (!handle) return;
       const files = await scanDirectoryHandle(handle);
       setPreviews(files);
       setResult(null);
@@ -102,6 +148,22 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
   const toggleFile = (idx: number) => setPreviews((p) => p.map((f, i) => i === idx ? { ...f, selected: !f.selected } : f));
   const selectedCount = previews.filter((f) => f.selected).length;
 
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropDepthRef.current = 0;
+    setDragActive(false);
+    if (!isSupported) return;
+    const files = await readDroppedItems(e.dataTransfer.items);
+    if (files.length) {
+      setPreviews((prev) => {
+        const seen = new Set(prev.map((f) => f.relativePath));
+        return [...prev, ...files.filter((f) => !seen.has(f.relativePath))];
+      });
+      setResult(null);
+    }
+  }, [isSupported, readDroppedItems]);
+
   const close = () => {
     onClose();
     setTimeout(() => { setPreviews([]); setResult(null); setCollectionId(""); }, 300);
@@ -114,6 +176,14 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={close} />
           <motion.div initial={{ opacity: 0, scale: 0.96, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }}
+            onDragEnter={(e) => { e.preventDefault(); dropDepthRef.current += 1; setDragActive(true); }}
+            onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              dropDepthRef.current -= 1;
+              if (dropDepthRef.current <= 0) setDragActive(false);
+            }}
+            onDrop={handleDrop}
             className="relative w-full max-w-2xl glass-panel rounded-2xl overflow-hidden z-10 shadow-2xl max-h-[85vh] flex flex-col">
 
             {/* Header */}
@@ -128,6 +198,15 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
             </div>
 
             <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-5">
+              {dragActive && (
+                <div className="absolute inset-0 z-20 m-4 rounded-2xl border-2 border-dashed border-primary bg-primary/10 backdrop-blur-sm flex items-center justify-center">
+                  <div className="text-center">
+                    <Upload className="w-10 h-10 mx-auto text-primary mb-2" />
+                    <p className="font-semibold text-foreground">Drop .md files here</p>
+                    <p className="text-xs text-muted-foreground">We’ll bulk import them right away</p>
+                  </div>
+                </div>
+              )}
               {/* Not supported warning */}
               {!isSupported && (
                 <div className="flex items-center gap-3 p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-sm">
