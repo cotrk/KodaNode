@@ -64,6 +64,17 @@ Its core purpose: give power users a private, organized, searchable library of A
 ## Project File Map
 
 ```
+prompts/
+  system-prompt.md            — full specialist prompt
+  system-prompt-short.md      — compact production prompt
+  README.md                   — prompt pack usage guide
+  kb/                         — root knowledge base files
+  projects/
+    prompt-vault/
+      system/                 — project-level system prompts
+      tools/                  — small task-specific tool-face prompts
+      kb/                     — project-specific knowledge base files
+
 shared/
   schema.ts         — DB tables (generations, collections) + Zod insert schemas + types
   routes.ts         — typed API route path constants
@@ -265,3 +276,5 @@ When something breaks, follow this triage order:
 - When adding a new feature, follow this order: schema → storage → route → frontend hook → UI
 - The vault folder feature is Chrome/Edge only — do not try to polyfill it for other browsers
 - This is a local-first desktop app — minimize cloud dependencies
+- Prefer the nested `prompts/projects/prompt-vault/` pack for project-specific orchestration, and use the root `prompts/kb/` files for shared reference material
+- Load small tool-face prompts only when a task specifically needs them; keep the main system prompt lean and stable

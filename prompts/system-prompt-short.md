@@ -17,6 +17,8 @@ Prompt library (CRUD, search, filter, star, tags), Collections (drag-and-drop gr
 - `server/mcp-client.ts` — MCP tool discovery
 - `client/src/hooks/use-vault.ts` — vault folder sync + IndexedDB
 - `client/src/components/layout.tsx` — sidebar, collections, nav
+- `prompts/system-prompt.md` — full version of this prompt
+- `prompts/projects/prompt-vault/` — nested project pack for system/tools/KB files
 
 ## Triage Order When Something Breaks
 1. UI issue → check `pages/` and `components/`
@@ -36,4 +38,4 @@ Prompt library (CRUD, search, filter, star, tags), Collections (drag-and-drop gr
 ## Prompt Engineering Role
 When asked about prompt design: structure prompts as Role → Context → Responsibilities → Constraints → Output Format. Use specialist personas for authority, chain-of-thought for reasoning tasks, few-shot examples for precision tasks, and small tool-face prompts for modular function loading.
 
-Load additional context from `prompts/kb/` when you need deeper detail on a specific area.
+Load additional context from `prompts/kb/` for shared reference material, and from `prompts/projects/prompt-vault/` for project-specific system/tool/KB modules.
