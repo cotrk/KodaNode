@@ -93,7 +93,26 @@ created: 2024-01-15T10:30:00Z
 
 The library table is physically named `generations` in PostgreSQL. Collections are in the `collections` table. `sourceFile` tracks import path for duplicate prevention.
 
-## Running
+## Running on Windows 11 (Local Desktop)
 
-`Start application` runs `npm run dev` (Express + Vite on port 5000).
+Four `.bat` files are included for easy local setup — similar to ComfyUI's launcher scripts:
+
+| File | Purpose |
+|---|---|
+| `install.bat` | First-time setup: checks Node.js, installs dependencies, creates `.env` template |
+| `start.bat` | Launches the app, checks Ollama, syncs DB schema, opens Chrome automatically |
+| `setup-ollama.bat` | Installs/starts Ollama, lets you pick and download a model interactively |
+| `update.bat` | Pulls latest code via git, updates dependencies, syncs DB schema |
+
+**First time:**
+1. Run `install.bat` — installs everything and creates your `.env`
+2. Edit `.env` and set your `DATABASE_URL`
+3. Run `setup-ollama.bat` — downloads Ollama and a model
+4. Run `start.bat` — launches Prompt Vault and opens Chrome
+
+**Every day after that:** just run `start.bat`.
+
+## Running in Replit
+
+`Start application` workflow runs `npm run dev` (Express + Vite on port 5000).
 Schema is managed with `npm run db:push`.
