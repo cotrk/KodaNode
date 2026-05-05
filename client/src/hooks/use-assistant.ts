@@ -1,6 +1,6 @@
-import { useQuery, useMutation, useQueryClient, useIsMutating } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@shared/routes";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 
 const MSG_KEY = api.assistant.messages.path;
 
@@ -31,17 +31,29 @@ export function useAssistantChat() {
   const [streamingContent, setStreamingContent] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const cancelStream = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setIsStreaming(false);
+    setStreamingContent("");
+  }, []);
 
   const sendMessage = useCallback(async (message: string, promptContext?: string) => {
     setError(null);
     setStreamingContent("");
     setIsStreaming(true);
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
       const res = await fetch(api.assistant.chat.path, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message, promptContext }),
+        signal: controller.signal,
       });
 
       if (!res.ok) {
@@ -74,12 +86,14 @@ export function useAssistantChat() {
         }
       }
     } catch (e) {
+      if ((e as Error).name === "AbortError") return;
       setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
+      abortRef.current = null;
       setIsStreaming(false);
       setStreamingContent("");
     }
   }, [qc]);
 
-  return { sendMessage, streamingContent, isStreaming, error };
+  return { sendMessage, cancelStream, streamingContent, isStreaming, error };
 }
