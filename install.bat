@@ -7,8 +7,12 @@ echo ============================================================
 echo   PROMPT VAULT — First-Time Setup
 echo ============================================================
 echo.
+echo  Running from: %CD%
+echo.
+pause
 
 REM ── Check Node.js ──────────────────────────────────────────
+echo.
 echo [1/4] Checking for Node.js...
 node --version >nul 2>&1
 if %errorlevel% neq 0 (
@@ -18,76 +22,105 @@ if %errorlevel% neq 0 (
     echo  Please install Node.js v18 or later from:
     echo    https://nodejs.org/en/download
     echo.
-    echo  After installing, re-run this file.
+    echo  After installing Node.js, CLOSE this window and run install.bat again.
+    echo.
     pause
     exit /b 1
 )
 for /f "tokens=*" %%v in ('node --version') do set NODE_VER=%%v
 echo  OK  Node.js %NODE_VER% found.
+echo.
+pause
 
 REM ── Check npm ──────────────────────────────────────────────
 echo.
 echo [2/4] Checking for npm...
 npm --version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo  ERROR: npm not found. Reinstall Node.js.
+    echo  ERROR: npm not found. Please reinstall Node.js.
+    echo.
     pause
     exit /b 1
 )
 for /f "tokens=*" %%v in ('npm --version') do set NPM_VER=%%v
 echo  OK  npm %NPM_VER% found.
+echo.
+pause
 
 REM ── Install dependencies ───────────────────────────────────
 echo.
-echo [3/4] Installing dependencies (this may take a minute)...
+echo [3/4] Installing dependencies...
+echo  (This may take 1-3 minutes on first run. Please wait.)
 echo.
-npm install
+call npm install
 if %errorlevel% neq 0 (
     echo.
-    echo  ERROR: npm install failed. Check your internet connection and try again.
+    echo  ERROR: npm install failed.
+    echo  Check your internet connection and try again.
+    echo.
     pause
     exit /b 1
 )
 echo.
-echo  OK  Dependencies installed.
-
-REM ── Check environment file ────────────────────────────────
+echo  OK  Dependencies installed successfully.
 echo.
-echo [4/4] Checking environment configuration...
-if not exist .env (
-    echo.
-    echo  NOTE: No .env file found.
-    echo  Creating a template .env file for you...
-    echo.
-    (
-        echo # Prompt Vault — Environment Configuration
-        echo.
-        echo # PostgreSQL connection string
-        echo # Format: postgresql://USER:PASSWORD@HOST:PORT/DATABASE
-        echo DATABASE_URL=postgresql://localhost:5432/promptvault
-        echo.
-        echo # Session secret (change this to a random string)
-        echo SESSION_SECRET=change-me-to-a-random-secret-string
-    ) > .env
-    echo  Created .env — open it and fill in your DATABASE_URL before starting.
-    echo.
-    echo  If you don't have PostgreSQL, you can get a free one at:
-    echo    https://neon.tech  (cloud, free tier)
-    echo    https://supabase.com  (cloud, free tier)
-    echo    or install PostgreSQL locally: https://www.postgresql.org/download/windows
-    echo.
+pause
+
+REM ── Create .env file ──────────────────────────────────────
+echo.
+echo [4/4] Setting up environment file...
+echo.
+if exist .env (
+    echo  .env file already exists — skipping creation.
+    echo  Location: %CD%\.env
 ) else (
-    echo  OK  .env file found.
+    echo  Creating .env file at: %CD%\.env
+    echo # Prompt Vault - Environment Configuration> .env
+    echo.>> .env
+    echo # PostgreSQL connection string>> .env
+    echo # Get a free database at neon.tech or supabase.com>> .env
+    echo # Format: postgresql://USER:PASSWORD@HOST:PORT/DATABASE>> .env
+    echo DATABASE_URL=postgresql://localhost:5432/promptvault>> .env
+    echo.>> .env
+    echo # Session secret - change this to any random string>> .env
+    echo SESSION_SECRET=change-me-to-a-long-random-string>> .env
+
+    if exist .env (
+        echo  OK  .env created successfully!
+    ) else (
+        echo.
+        echo  WARNING: Could not create .env automatically.
+        echo  Please create a file named exactly:  .env
+        echo  In this folder:  %CD%
+        echo  With this content:
+        echo.
+        echo    DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DATABASE
+        echo    SESSION_SECRET=any-random-string-here
+        echo.
+    )
 )
+echo.
+pause
+
+REM ── Open .env for editing ─────────────────────────────────
+echo.
+echo  Opening .env in Notepad so you can fill in your DATABASE_URL...
+echo.
+echo  Change DATABASE_URL to your actual PostgreSQL connection string.
+echo  Free databases: neon.tech or supabase.com
+echo.
+start notepad.exe .env
+echo.
+pause
 
 echo.
 echo ============================================================
 echo   Setup complete!
 echo.
-echo   Next steps:
-echo     1. Edit .env and set your DATABASE_URL
-echo     2. Run start.bat to launch Prompt Vault
-echo     3. Run setup-ollama.bat to configure local AI
+echo   NEXT STEPS:
+echo     1. Fill in DATABASE_URL in the .env file (Notepad just opened)
+echo     2. Run setup-ollama.bat to set up local AI (optional)
+echo     3. Run start.bat to launch Prompt Vault
 echo ============================================================
 echo.
 pause
