@@ -116,3 +116,4 @@ Four `.bat` files are included for easy local setup — similar to ComfyUI's lau
 
 `Start application` workflow runs `npm run dev` (Express + Vite on port 5000).
 Schema is managed with `npm run db:push`.
+ 
