@@ -74,29 +74,31 @@ if exist .env (
     echo  .env file already exists — skipping creation.
     echo  Location: %CD%\.env
 ) else (
-    echo  Creating .env file at: %CD%\.env
-    echo # Prompt Vault - Environment Configuration> .env
-    echo.>> .env
-    echo # PostgreSQL connection string>> .env
-    echo # Get a free database at neon.tech or supabase.com>> .env
-    echo # Format: postgresql://USER:PASSWORD@HOST:PORT/DATABASE>> .env
-    echo DATABASE_URL=postgresql://localhost:5432/promptvault>> .env
-    echo.>> .env
-    echo # Session secret - change this to any random string>> .env
-    echo SESSION_SECRET=change-me-to-a-long-random-string>> .env
-
+    echo  Creating .env file using PowerShell...
+    powershell -NoProfile -Command "$content = @('DATABASE_URL=postgresql://localhost:5432/promptvault', 'SESSION_SECRET=change-me-to-a-long-random-string'); Set-Content -Path '.env' -Value $content -Encoding UTF8"
     if exist .env (
-        echo  OK  .env created successfully!
+        echo  OK  .env created at: %CD%\.env
     ) else (
         echo.
-        echo  WARNING: Could not create .env automatically.
-        echo  Please create a file named exactly:  .env
-        echo  In this folder:  %CD%
-        echo  With this content:
-        echo.
-        echo    DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DATABASE
-        echo    SESSION_SECRET=any-random-string-here
-        echo.
+        echo  Auto-create failed. Creating manually now...
+        copy nul .env >nul 2>&1
+        powershell -NoProfile -Command "Add-Content -Path '.env' -Value 'DATABASE_URL=postgresql://localhost:5432/promptvault'"
+        powershell -NoProfile -Command "Add-Content -Path '.env' -Value 'SESSION_SECRET=change-me-to-a-long-random-string'"
+        if exist .env (
+            echo  OK  .env created successfully.
+        ) else (
+            echo.
+            echo  ============================================================
+            echo  MANUAL STEP REQUIRED:
+            echo  Create a new text file in this folder: %CD%
+            echo  Name it exactly:  .env  (with the dot, no .txt extension)
+            echo  Paste this inside it:
+            echo.
+            echo    DATABASE_URL=postgresql://localhost:5432/promptvault
+            echo    SESSION_SECRET=change-me-to-a-long-random-string
+            echo  ============================================================
+            echo.
+        )
     )
 )
 echo.
@@ -105,11 +107,10 @@ pause
 REM ── Open .env for editing ─────────────────────────────────
 echo.
 echo  Opening .env in Notepad so you can fill in your DATABASE_URL...
-echo.
-echo  Change DATABASE_URL to your actual PostgreSQL connection string.
+echo  Replace the DATABASE_URL value with your real PostgreSQL connection.
 echo  Free databases: neon.tech or supabase.com
 echo.
-start notepad.exe .env
+start notepad.exe "%CD%\.env"
 echo.
 pause
 
