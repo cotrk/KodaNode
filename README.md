@@ -93,24 +93,78 @@ created: 2024-01-15T10:30:00Z
 
 The library table is physically named `generations` in PostgreSQL. Collections are in the `collections` table. `sourceFile` tracks import path for duplicate prevention.
 
-## Running on Windows 11 (Local Desktop)
+## Installing on Windows 11
 
-Four `.bat` files are included for easy local setup — similar to ComfyUI's launcher scripts:
+### Step 1 — Extract the downloaded file
+
+Replit exports the project as a `.tar.gz` file. Windows' built-in extractor does not handle this format reliably and may drop files. Use one of these methods instead:
+
+**Option A — PowerShell (recommended, no extra software needed)**
+1. Open the folder where you downloaded the file
+2. Hold **Shift** and right-click an empty area → select **Open PowerShell window here**
+3. Run this command (replace the filename with your actual file):
+```powershell
+tar -xzf ReplitExport-cotrk.tar.gz
+```
+4. A new folder will appear with all the project files inside
+
+**Option B — 7-Zip (easiest if you prefer GUI)**
+1. Download and install 7-Zip from [7-zip.org](https://www.7-zip.org) (free)
+2. Right-click the `.tar.gz` file
+3. Select **7-Zip → Extract Here**
+4. All files including the `.bat` launchers will be extracted correctly
+
+> **Do not** double-click the file to open it in Windows Explorer — this partially extracts it and causes the `.bat` files to go missing.
+
+---
+
+### Step 2 — Prerequisites
+
+Before running the app you need:
+
+| Requirement | Where to get it |
+|---|---|
+| **Node.js v18+** | [nodejs.org](https://nodejs.org/en/download) — install the LTS version |
+| **PostgreSQL database** | Free cloud options: [neon.tech](https://neon.tech) or [supabase.com](https://supabase.com) — or install locally from [postgresql.org](https://www.postgresql.org/download/windows) |
+| **Chrome or Edge browser** | Required for Vault folder sync feature |
+| **Ollama** (optional) | [ollama.com/download/windows](https://ollama.com/download/windows) — needed for AI assistant |
+
+---
+
+### Step 3 — First-time setup
+
+Open the extracted project folder. You will see four `.bat` launcher files:
 
 | File | Purpose |
 |---|---|
 | `install.bat` | First-time setup: checks Node.js, installs dependencies, creates `.env` template |
-| `start.bat` | Launches the app, checks Ollama, syncs DB schema, opens Chrome automatically |
 | `setup-ollama.bat` | Installs/starts Ollama, lets you pick and download a model interactively |
-| `update.bat` | Pulls latest code via git, updates dependencies, syncs DB schema |
+| `start.bat` | Launches the app, syncs DB schema, opens Chrome automatically |
+| `update.bat` | Pulls latest code, updates dependencies, syncs DB schema |
 
-**First time:**
-1. Run `install.bat` — installs everything and creates your `.env`
-2. Edit `.env` and set your `DATABASE_URL`
-3. Run `setup-ollama.bat` — downloads Ollama and a model
-4. Run `start.bat` — launches Prompt Vault and opens Chrome
+**Run these in order the first time:**
 
-**Every day after that:** just run `start.bat`.
+1. Double-click **`install.bat`** — checks Node.js, installs all dependencies, and creates a `.env` file
+2. Open the `.env` file in Notepad and set your `DATABASE_URL`:
+```
+DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DATABASE
+```
+3. Double-click **`setup-ollama.bat`** — walks you through downloading Ollama and a model *(skip if you don't want AI features)*
+4. Double-click **`start.bat`** — starts the server and opens Chrome at `http://localhost:5000`
+
+**Every day after that:** just double-click **`start.bat`**.
+
+---
+
+### Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `.bat` files missing after extraction | Use PowerShell `tar` command or 7-Zip — do not use Windows built-in extractor |
+| `node` not found error | Install Node.js from nodejs.org and restart PowerShell |
+| Database connection error | Check your `DATABASE_URL` in the `.env` file |
+| AI assistant not working | Make sure Ollama is running — run `setup-ollama.bat` |
+| Vault folder not working | Use Chrome or Edge — this feature does not work in Firefox |
 
 ## Running in Replit
 
