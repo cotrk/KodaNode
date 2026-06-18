@@ -48,7 +48,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   app.put(api.settings.update.path, async (req, res) => {
     try { res.json(await storage.upsertProviderSettings(updateProviderSettingsSchema.parse(req.body))); }
-    catch (e) { if (e instanceof z.ZodError) return res.status(400).json({ message: e.errors[0].message }); throw e; }
+    catch (e) {
+      if (e instanceof z.ZodError) return res.status(400).json({ message: e.errors[0].message });
+      console.error("Settings update error:", e);
+      res.status(500).json({ message: e instanceof Error ? e.message : "Failed to update settings" });
+    }
   });
 
   app.post(api.settings.testOllama.path, async (req, res) => {

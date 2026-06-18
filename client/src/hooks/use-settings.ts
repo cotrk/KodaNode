@@ -22,7 +22,10 @@ export function useUpdateSettings() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Failed to update settings");
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || `Server error ${res.status}`);
+      }
       return res.json();
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: [api.settings.get.path] }),

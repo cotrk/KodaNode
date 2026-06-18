@@ -77,9 +77,13 @@ echo  OK  Configuration loaded.
 
 REM ── Sync database schema ─────────────────────────────────
 echo  Syncing database schema...
-call npm run db:push >nul 2>&1
+call npx drizzle-kit push --force
 if %errorlevel% neq 0 (
-    echo  WARN: Schema sync failed. Check your DATABASE_URL in .env.
+    echo.
+    echo  WARN: Schema sync failed. The app may not work correctly.
+    echo  Check your DATABASE_URL in .env and that the database exists.
+    echo.
+    pause
 ) else (
     echo  OK  Database ready.
 )
