@@ -73,11 +73,15 @@ First, create the database. Open **Command Prompt** and run:
 ```
 psql -U postgres -c "CREATE DATABASE grimoire;"
 ```
-Then set your `.env` like this (use the password you set when installing PostgreSQL):
+Then set your `.env`. The connection string **must** include your username and password — note the `postgres:YourPassword@` part:
 ```
 DATABASE_URL=postgresql://postgres:YourPassword@localhost:5432/grimoire
+                           ^^^^^^^^ ^^^^^^^^^^^  ^^^^^^^^^  ^^^^  ^^^^^^^
+                           username password     host       port  database
 SESSION_SECRET=any-long-random-string-you-choose
 ```
+
+> **Common mistake:** Writing `postgresql://localhost:5432/grimoire` without a username and password. PostgreSQL will silently connect to the wrong database or refuse the connection. Always include `username:password@` between `://` and `localhost`.
 
 **Option B — Free cloud database (Neon)**
 

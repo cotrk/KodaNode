@@ -63,53 +63,87 @@ if "!DATABASE_URL!"=="" (
     echo.
     echo  ERROR: DATABASE_URL is not set in your .env file.
     echo.
-    echo  Open .env and set it. For local PostgreSQL 18 it looks like:
+    echo  The correct format for local PostgreSQL is:
     echo    DATABASE_URL=postgresql://postgres:YourPassword@localhost:5432/grimoire
+    echo                              ^^^^^^^^  ^^^^^^^^^^^  ^^^^^^^^^  ^^^^  ^^^^^^^^
+    echo                              username  password     host       port  database
     echo.
-    echo  Make sure the 'grimoire' database exists. Create it by running:
+    start notepad.exe "%CD%\.env"
+    pause
+    exit /b 1
+)
+
+REM ── Validate DATABASE_URL has credentials (contains @) ───
+echo !DATABASE_URL! | findstr /C:"@" >nul 2>&1
+if %errorlevel% neq 0 (
+    echo.
+    echo  ERROR: DATABASE_URL is missing username and password.
+    echo.
+    echo  Your current value looks like:
+    echo    !DATABASE_URL!
+    echo.
+    echo  It must follow this format — note the  user:password@  part:
+    echo    postgresql://postgres:YourPassword@localhost:5432/YourDatabase
+    echo.
+    echo  Steps to fix:
+    echo    1. Open your .env file ^(Notepad will open now^)
+    echo    2. Replace DATABASE_URL with the correct format above
+    echo    3. Use your actual PostgreSQL username and password
+    echo    4. Save the file and run start.bat again
+    echo.
+    echo  Your PostgreSQL username is usually:  postgres
+    echo  Your password is what you set when installing PostgreSQL.
+    echo.
+    echo  To create a fresh database, open pgAdmin or run:
     echo    psql -U postgres -c "CREATE DATABASE grimoire;"
     echo.
     start notepad.exe "%CD%\.env"
     pause
     exit /b 1
 )
+
+REM ── Show which database we are connecting to ─────────────
+for /f "tokens=* delims=" %%i in ('powershell -NoProfile -Command "if ('!DATABASE_URL!' -match '@[^/]+/([^?]+)') { $Matches[1] } else { 'unknown' }"') do set DB_NAME=%%i
+for /f "tokens=* delims=" %%i in ('powershell -NoProfile -Command "if ('!DATABASE_URL!' -match '://([^:]+):') { $Matches[1] } else { 'unknown' }"') do set DB_USER=%%i
 echo  OK  Configuration loaded.
+echo  DB  Connecting as [%DB_USER%] to database [%DB_NAME%]
 
 REM ── Sync database schema ─────────────────────────────────
+echo.
 echo  Syncing database schema...
 call npx drizzle-kit push --force
 if %errorlevel% neq 0 (
     echo.
-    echo  WARN: Schema sync failed. The app may not work correctly.
-    echo  Check your DATABASE_URL in .env and that the database exists.
+    echo  ERROR: Schema sync failed.
+    echo  Check your DATABASE_URL in .env. Common problems:
+    echo    - Wrong password
+    echo    - Database does not exist  ^(create it in pgAdmin first^)
+    echo    - PostgreSQL service not running
     echo.
     pause
+    exit /b 1
 ) else (
-    echo  OK  Database ready.
+    echo  OK  Database [%DB_NAME%] is ready.
 )
 
 REM ── Check Ollama (optional) ───────────────────────────────
+echo.
 echo  Checking Ollama...
 curl -s --max-time 2 http://localhost:11434/api/tags >nul 2>&1
 if %errorlevel% neq 0 (
-    echo  NOTE: Ollama is not running. AI features will be unavailable.
-    echo        Run setup-ollama.bat to configure local AI.
+    echo  NOTE: Ollama not running. AI features unavailable until you run setup-ollama.bat
 ) else (
     echo  OK  Ollama running.
 )
 
 REM ── Start server and open browser ─────────────────────────
 echo.
-echo  Starting Grimoire on http://localhost:5000
-echo  The app will open in your browser automatically.
-echo.
-echo  Keep this window open while using the app.
-echo  Press Ctrl+C to stop the server.
+echo ============================================================
+echo   Starting Grimoire on http://localhost:5000
+echo   Browser will open automatically in 3 seconds.
+echo   Keep this window open — press Ctrl+C to stop.
 echo ============================================================
 echo.
 
-REM Open default browser after 3 seconds
 powershell -NoProfile -WindowStyle Hidden -Command "Start-Sleep 3; Start-Process 'http://localhost:5000'"
-
-REM Run the server (Windows-compatible: set env vars first, then run tsx directly)
 npx tsx server/index.ts
