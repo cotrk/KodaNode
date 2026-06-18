@@ -48,36 +48,78 @@ if exist .env (
     echo  .env already exists — skipping.
     echo  Edit it at: %CD%\.env
 ) else (
-    powershell -NoProfile -Command "$lines = @('# Replace ALL of the placeholder values below before running start.bat','# Format: postgresql://USERNAME:PASSWORD@HOST:PORT/DATABASE','DATABASE_URL=postgresql://postgres:YourPasswordHere@localhost:5432/grimoire','SESSION_SECRET=change-me-to-a-long-random-secret'); Set-Content -Path (Join-Path '%CD%' '.env') -Value $lines -Encoding ASCII"
+    REM Write a temp PowerShell script to create the .env template
+    REM (avoids batch-escaping issues with #, ://, ?, = characters)
+    set PS_SCRIPT=%TEMP%\grimoire_mkenv.ps1
+    (
+        echo $lines = @(
+        echo   '# ================================================================',
+        echo   '# GRIMOIRE - Environment Configuration',
+        echo   '# ================================================================',
+        echo   '# Uncomment ONE database option below and fill in your credentials.',
+        echo   '# Run setup-database.bat to configure local PostgreSQL automatically.',
+        echo   '# ================================================================',
+        echo   '',
+        echo   '# ----------------------------------------------------------------',
+        echo   '# OPTION 1 - Local PostgreSQL',
+        echo   '# Run setup-database.bat to fill this in automatically, OR edit:',
+        echo   '#   Username and password = set during PostgreSQL installation',
+        echo   '#   Database name         = any name you like (create it in pgAdmin)',
+        echo   '# ----------------------------------------------------------------',
+        echo   'DATABASE_URL=postgresql://postgres:YourPasswordHere@localhost:5432/grimoire',
+        echo   '',
+        echo   '# ----------------------------------------------------------------',
+        echo   '# OPTION 2 - Supabase  https://supabase.com  (free tier available)',
+        echo   '#   1. Create a project at supabase.com',
+        echo   '#   2. Project Settings ^> Database ^> Connection String ^> URI',
+        echo   '#   3. Paste the URI below and uncomment, comment out OPTION 1',
+        echo   '# ----------------------------------------------------------------',
+        echo   '# DATABASE_URL=postgresql://postgres:YourPassword@db.xxxxxxxxxxxxxxxxxxxx.supabase.co:5432/postgres',
+        echo   '',
+        echo   '# ----------------------------------------------------------------',
+        echo   '# OPTION 3 - Neon  https://neon.tech  (free serverless PostgreSQL)',
+        echo   '#   1. Create a project at neon.tech',
+        echo   '#   2. Copy the Connection String from the dashboard',
+        echo   '#   3. Paste it below and uncomment, comment out OPTION 1',
+        echo   '# ----------------------------------------------------------------',
+        echo   '# DATABASE_URL=postgresql://user:password@ep-name-abc123.us-east-2.aws.neon.tech/neondb?sslmode=require',
+        echo   '',
+        echo   '# ----------------------------------------------------------------',
+        echo   '# OPTION 4 - Railway  https://railway.app  (free tier available)',
+        echo   '#   1. Create a PostgreSQL service in a Railway project',
+        echo   '#   2. Open the service, go to Variables, copy DATABASE_URL',
+        echo   '#   3. Paste it below and uncomment, comment out OPTION 1',
+        echo   '# ----------------------------------------------------------------',
+        echo   '# DATABASE_URL=postgresql://postgres:password@monorail.proxy.rlwy.net:12345/railway',
+        echo   '',
+        echo   '# ----------------------------------------------------------------',
+        echo   '# OPTION 5 - Aiven  https://aiven.io  (free tier available)',
+        echo   '#   1. Create a PostgreSQL service at aiven.io',
+        echo   '#   2. Service Overview ^> copy the Service URI',
+        echo   '#   3. Paste it below and uncomment, comment out OPTION 1',
+        echo   '# ----------------------------------------------------------------',
+        echo   '# DATABASE_URL=postgresql://user:password@pg-name.aivencloud.com:12345/defaultdb?sslmode=require',
+        echo   '',
+        echo   '# ================================================================',
+        echo   '# Session secret - change this to any long random string you like',
+        echo   '# ================================================================',
+        echo   'SESSION_SECRET=change-me-to-a-long-random-secret'
+        echo ^)
+        echo Set-Content -Path (Join-Path '%CD%' '.env') -Value $lines -Encoding ASCII
+    ) > "!PS_SCRIPT!"
+
+    powershell -NoProfile -ExecutionPolicy Bypass -File "!PS_SCRIPT!"
+    del "!PS_SCRIPT!" >nul 2>&1
+
     if exist .env (
         echo  OK  .env created at: %CD%\.env
     ) else (
-        copy nul "%CD%\.env" >nul 2>&1
-        powershell -NoProfile -Command "Add-Content -Path (Join-Path '%CD%' '.env') -Value 'DATABASE_URL=postgresql://localhost:5432/grimoire'"
-        powershell -NoProfile -Command "Add-Content -Path (Join-Path '%CD%' '.env') -Value 'SESSION_SECRET=change-me-to-a-long-random-secret'"
-        if exist .env (
-            echo  OK  .env created.
-        ) else (
-            echo.
-            echo  Could not create .env automatically.
-            echo  Please manually create a file named  .env  in this folder:
-            echo    %CD%
-            echo  With this content:
-            echo    DATABASE_URL=postgresql://localhost:5432/grimoire
-            echo    SESSION_SECRET=change-me-to-a-long-random-secret
-            echo.
-            pause
-        )
+        echo  WARNING: Could not create .env automatically.
+        echo  Please create a file named .env manually in: %CD%
+        echo  See README.md for the required format.
+        pause
     )
 )
-
-REM ── Open .env in Notepad ──────────────────────────────────
-echo.
-echo  Opening .env in Notepad...
-echo  Set DATABASE_URL to your PostgreSQL connection string.
-echo  Free options: https://neon.tech  or  https://supabase.com
-echo.
-start notepad.exe "%CD%\.env"
 
 echo.
 echo ============================================================
@@ -85,8 +127,8 @@ echo   Setup complete!
 echo.
 echo   NEXT STEPS:
 echo     1. Run setup-database.bat  ^<^<^< do this next
-echo        Connects to PostgreSQL, creates your database,
-echo        and writes the correct DATABASE_URL to .env automatically.
+echo        Walks you through choosing a database provider,
+echo        creates the database, and writes .env automatically.
 echo.
 echo     2. (Optional) Run setup-ollama.bat to set up local AI
 echo.

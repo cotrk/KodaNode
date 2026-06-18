@@ -5,7 +5,169 @@ title Grimoire — Database Setup
 echo.
 echo ============================================================
 echo   GRIMOIRE — Database Setup
-echo   Connects to your local PostgreSQL and creates the database
+echo ============================================================
+echo.
+echo   Choose your database provider:
+echo.
+echo     1. Local PostgreSQL     (already installed on this PC)
+echo     2. Supabase             https://supabase.com
+echo     3. Neon                 https://neon.tech
+echo     4. Railway              https://railway.app
+echo     5. Aiven                https://aiven.io
+echo     6. Other / Manual       I have a connection string already
+echo.
+set /p DB_CHOICE="  Your choice (1-6): "
+
+if "!DB_CHOICE!"=="1" goto :local_postgres
+if "!DB_CHOICE!"=="2" goto :cloud_supabase
+if "!DB_CHOICE!"=="3" goto :cloud_neon
+if "!DB_CHOICE!"=="4" goto :cloud_railway
+if "!DB_CHOICE!"=="5" goto :cloud_aiven
+if "!DB_CHOICE!"=="6" goto :cloud_manual
+echo  Invalid choice. Please run this file again and enter 1-6.
+pause
+exit /b 1
+
+REM =============================================================
+REM  CLOUD PROVIDERS — show instructions, open .env for editing
+REM =============================================================
+
+:cloud_supabase
+echo.
+echo ============================================================
+echo   Supabase Setup
+echo ============================================================
+echo.
+echo   1. Go to https://supabase.com and sign in / create an account
+echo   2. Create a new Project
+echo   3. Once created, go to:
+echo        Project Settings ^> Database ^> Connection String ^> URI
+echo   4. Copy the connection string (starts with postgresql://)
+echo   5. Open your .env file (Notepad will open now)
+echo   6. Find the Supabase line and:
+echo        - Remove the  #  at the start to uncomment it
+echo        - Paste your connection string after  DATABASE_URL=
+echo        - Add a  #  at the start of the OPTION 1 line to comment it out
+echo   7. Save the file, close Notepad, then run start.bat
+echo.
+echo   Your connection string will look like:
+echo     postgresql://postgres:abc123@db.xxxxxxxxxxxxxxxx.supabase.co:5432/postgres
+echo.
+pause
+goto :open_env_and_exit
+
+:cloud_neon
+echo.
+echo ============================================================
+echo   Neon Setup
+echo ============================================================
+echo.
+echo   1. Go to https://neon.tech and sign in / create an account
+echo   2. Create a new Project (choose a region near you)
+echo   3. On the dashboard, click "Connection string" or go to:
+echo        Project Dashboard ^> Connection Details
+echo   4. Copy the connection string (starts with postgresql://)
+echo   5. Open your .env file (Notepad will open now)
+echo   6. Find the Neon line and:
+echo        - Remove the  #  at the start to uncomment it
+echo        - Paste your connection string after  DATABASE_URL=
+echo        - Add a  #  at the start of the OPTION 1 line to comment it out
+echo   7. Save the file, close Notepad, then run start.bat
+echo.
+echo   Your connection string will look like:
+echo     postgresql://user:abc123@ep-cool-fog-123456.us-east-2.aws.neon.tech/neondb?sslmode=require
+echo.
+pause
+goto :open_env_and_exit
+
+:cloud_railway
+echo.
+echo ============================================================
+echo   Railway Setup
+echo ============================================================
+echo.
+echo   1. Go to https://railway.app and sign in / create an account
+echo   2. Create a new Project
+echo   3. Inside the project, click "+ New" ^> "Database" ^> "PostgreSQL"
+echo   4. Click the PostgreSQL service ^> go to the "Variables" tab
+echo   5. Copy the value of DATABASE_URL
+echo   6. Open your .env file (Notepad will open now)
+echo   7. Find the Railway line and:
+echo        - Remove the  #  at the start to uncomment it
+echo        - Paste your connection string after  DATABASE_URL=
+echo        - Add a  #  at the start of the OPTION 1 line to comment it out
+echo   8. Save the file, close Notepad, then run start.bat
+echo.
+echo   Your connection string will look like:
+echo     postgresql://postgres:abc123@monorail.proxy.rlwy.net:12345/railway
+echo.
+pause
+goto :open_env_and_exit
+
+:cloud_aiven
+echo.
+echo ============================================================
+echo   Aiven Setup
+echo ============================================================
+echo.
+echo   1. Go to https://aiven.io and sign in / create an account
+echo   2. Create a new PostgreSQL service (free tier available)
+echo   3. Wait for the service to start, then click on it
+echo   4. On the Overview page, copy the "Service URI"
+echo   5. Open your .env file (Notepad will open now)
+echo   6. Find the Aiven line and:
+echo        - Remove the  #  at the start to uncomment it
+echo        - Paste your connection string after  DATABASE_URL=
+echo        - Add a  #  at the start of the OPTION 1 line to comment it out
+echo   7. Save the file, close Notepad, then run start.bat
+echo.
+echo   Your connection string will look like:
+echo     postgresql://user:abc123@pg-name.aivencloud.com:12345/defaultdb?sslmode=require
+echo.
+pause
+goto :open_env_and_exit
+
+:cloud_manual
+echo.
+echo ============================================================
+echo   Manual Setup
+echo ============================================================
+echo.
+echo   Your .env file will open in Notepad.
+echo.
+echo   Replace the DATABASE_URL value with your connection string.
+echo   The format is:
+echo     postgresql://USERNAME:PASSWORD@HOST:PORT/DATABASE
+echo.
+echo   Make sure to comment out any option you are NOT using
+echo   by adding a  #  at the start of that DATABASE_URL line.
+echo.
+pause
+goto :open_env_and_exit
+
+:open_env_and_exit
+if not exist .env (
+    echo  NOTE: .env file not found. Run install.bat first.
+    pause
+    exit /b 1
+)
+start notepad.exe "%CD%\.env"
+echo.
+echo  Notepad is open with your .env file.
+echo  Edit DATABASE_URL, save, then run start.bat.
+echo.
+pause
+exit /b 0
+
+
+REM =============================================================
+REM  LOCAL POSTGRESQL — full automated setup
+REM =============================================================
+
+:local_postgres
+echo.
+echo ============================================================
+echo   Local PostgreSQL Setup
 echo ============================================================
 echo.
 
@@ -13,7 +175,6 @@ REM ── Find psql.exe ──────────────────�
 echo [1/4] Looking for PostgreSQL (psql)...
 set PSQL_EXE=
 
-REM Check if psql is already in PATH
 where psql >nul 2>&1
 if %errorlevel% equ 0 (
     set PSQL_EXE=psql
@@ -22,7 +183,6 @@ if %errorlevel% equ 0 (
     goto :psql_found
 )
 
-REM Search common PostgreSQL install locations
 for /d %%d in ("C:\Program Files\PostgreSQL\*") do (
     if exist "%%d\bin\psql.exe" (
         set PSQL_EXE=%%d\bin\psql.exe
@@ -39,37 +199,36 @@ echo.
 echo  Make sure PostgreSQL is installed. Download from:
 echo    https://www.postgresql.org/download/windows
 echo.
-echo  If it is installed, add it to your PATH:
-echo    1. Search for "Environment Variables" in the Start menu
+echo  If installed, add it to PATH:
+echo    1. Search "Environment Variables" in the Start menu
 echo    2. Edit the PATH variable and add:
 echo       C:\Program Files\PostgreSQL\18\bin
-echo       (replace 18 with your PostgreSQL version number)
+echo       (replace 18 with your version number)
 echo.
 pause
 exit /b 1
 
 :psql_found
 
-REM ── Get credentials from user ─────────────────────────────
+REM ── Get credentials ───────────────────────────────────────
 echo.
 echo [2/4] PostgreSQL credentials
 echo.
-echo  Your PostgreSQL username is almost always:  postgres
-echo  (This is the admin account created during installation)
+echo  Username is almost always:  postgres
+echo  Password is what you set when installing PostgreSQL.
 echo.
-set /p PG_USER="  Enter PostgreSQL username [press Enter for 'postgres']: "
+set /p PG_USER="  Username [Enter for 'postgres']: "
 if "!PG_USER!"=="" set PG_USER=postgres
 
 echo.
 echo  Enter your PostgreSQL password.
-echo  (This is the password you set when installing PostgreSQL)
-echo  The cursor will not move while you type — that is normal.
+echo  (The cursor will not move while you type — that is normal)
 echo.
 set /p PG_PASS="  Password: "
 
-REM ── Test the connection ───────────────────────────────────
+REM ── Test connection ───────────────────────────────────────
 echo.
-echo [3/4] Testing connection to PostgreSQL...
+echo [3/4] Testing connection...
 echo.
 set PGPASSWORD=!PG_PASS!
 "!PSQL_EXE!" -U !PG_USER! -h localhost -c "\q" >nul 2>&1
@@ -77,40 +236,41 @@ if %errorlevel% neq 0 (
     echo  ERROR: Could not connect to PostgreSQL.
     echo.
     echo  Check:
-    echo    - Is the password correct?
-    echo    - Is PostgreSQL running? Open Services and look for postgresql-x64-18
-    echo    - Is your username correct?
+    echo    - Password correct?
+    echo    - PostgreSQL running? (Open Services, look for postgresql-x64-*)
+    echo    - Username correct?
     echo.
     set PGPASSWORD=
     pause
     exit /b 1
 )
-echo  OK  Connected to PostgreSQL as [!PG_USER!]
+echo  OK  Connected as [!PG_USER!]
 
 REM ── Pick database name ────────────────────────────────────
 echo.
 echo  Choose a name for the Grimoire database.
-echo  This will be created fresh — use any name you like.
+echo  (Any name works — it will be created for you)
 echo.
-set /p DB_NAME="  Database name [press Enter for 'grimoire']: "
+set /p DB_NAME="  Database name [Enter for 'grimoire']: "
 if "!DB_NAME!"=="" set DB_NAME=grimoire
 
-REM ── Check if database already exists ─────────────────────
+REM ── Create database if needed ─────────────────────────────
 "!PSQL_EXE!" -U !PG_USER! -h localhost -lqt 2>nul | findstr /C:" !DB_NAME! " >nul 2>&1
 if %errorlevel% equ 0 (
     echo.
     echo  Database [!DB_NAME!] already exists.
-    set /p EXISTING="  Use the existing database? (Y/N): "
-    if /i "!EXISTING!"=="N" (
-        set /p DB_NAME="  Enter a different database name: "
+    set /p USE_EXISTING="  Use it? (Y/N): "
+    if /i "!USE_EXISTING!"=="N" (
+        set /p DB_NAME="  Enter a different name: "
+        "!PSQL_EXE!" -U !PG_USER! -h localhost -c "CREATE DATABASE !DB_NAME!;" >nul 2>&1
+        echo  OK  Database [!DB_NAME!] created.
     )
 ) else (
     echo.
     echo  Creating database [!DB_NAME!]...
     "!PSQL_EXE!" -U !PG_USER! -h localhost -c "CREATE DATABASE !DB_NAME!;" >nul 2>&1
     if %errorlevel% neq 0 (
-        echo  ERROR: Could not create database [!DB_NAME!].
-        echo  It may already exist or you may not have permission.
+        echo  ERROR: Could not create database.
         set PGPASSWORD=
         pause
         exit /b 1
@@ -120,30 +280,23 @@ if %errorlevel% equ 0 (
 
 REM ── Write DATABASE_URL to .env ────────────────────────────
 echo.
-echo [4/4] Saving connection string to .env...
+echo [4/4] Writing connection string to .env...
 
 set DB_URL=postgresql://!PG_USER!:!PG_PASS!@localhost:5432/!DB_NAME!
 
-REM Read current .env, replace DATABASE_URL line
 if exist .env (
-    powershell -NoProfile -Command ^
-        "$env = Get-Content (Join-Path '%CD%' '.env') -Encoding UTF8; " ^
-        "$env = $env | ForEach-Object { if ($_ -match '^DATABASE_URL=') { 'DATABASE_URL=!DB_URL!' } else { $_ } }; " ^
-        "Set-Content (Join-Path '%CD%' '.env') -Value $env -Encoding ASCII"
+    powershell -NoProfile -Command "$f = Get-Content (Join-Path '%CD%' '.env'); $f = $f | ForEach-Object { if ($_ -match '^DATABASE_URL=') { 'DATABASE_URL=!DB_URL!' } elseif ($_ -match '^# DATABASE_URL=') { $_ } else { $_ } }; Set-Content (Join-Path '%CD%' '.env') -Value $f -Encoding ASCII"
 ) else (
-    powershell -NoProfile -Command ^
-        "$lines = @('DATABASE_URL=!DB_URL!','SESSION_SECRET=change-me-to-a-long-random-secret'); " ^
-        "Set-Content (Join-Path '%CD%' '.env') -Value $lines -Encoding ASCII"
+    powershell -NoProfile -Command "Set-Content (Join-Path '%CD%' '.env') -Value @('DATABASE_URL=!DB_URL!','SESSION_SECRET=change-me-to-a-long-random-secret') -Encoding ASCII"
 )
 
-REM Clear password from environment
 set PGPASSWORD=
 
 if exist .env (
-    echo  OK  .env updated with:
+    echo  OK  .env updated.
     echo      DATABASE_URL=postgresql://!PG_USER!:***@localhost:5432/!DB_NAME!
 ) else (
-    echo  ERROR: Could not write to .env
+    echo  ERROR: Could not write .env
     pause
     exit /b 1
 )
@@ -152,12 +305,12 @@ echo.
 echo ============================================================
 echo   Database setup complete!
 echo.
-echo   Connected as:  !PG_USER!
-echo   Database:      !DB_NAME!
-echo   Host:          localhost:5432
+echo   User:      !PG_USER!
+echo   Database:  !DB_NAME!
+echo   Host:      localhost:5432
 echo.
-echo   NEXT STEP: Run start.bat to launch Grimoire.
-echo   (start.bat will sync the schema tables automatically)
+echo   Run start.bat to launch Grimoire.
+echo   (start.bat syncs the schema tables automatically on startup)
 echo ============================================================
 echo.
 pause
