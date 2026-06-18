@@ -309,25 +309,71 @@ echo  (The cursor will not move while you type — that is normal)
 echo.
 set /p PG_PASS="  Password: "
 
-REM ── Test connection ───────────────────────────────────────
+REM ── Check PostgreSQL service is running ───────────────────
 echo.
 echo [3/4] Testing connection...
 echo.
+
+REM Find the postgresql service name (could be postgresql-x64-18, postgresql-18, etc.)
+set PG_SERVICE=
+for /f "tokens=1" %%s in ('sc query type^= all state^= all 2^>nul ^| findstr /i "postgresql"') do (
+    if "!PG_SERVICE!"=="" set PG_SERVICE=%%s
+)
+
+if not "!PG_SERVICE!"=="" (
+    sc query "!PG_SERVICE!" 2>nul | findstr /i "RUNNING" >nul 2>&1
+    if %errorlevel% neq 0 (
+        echo  NOTE: PostgreSQL service [!PG_SERVICE!] is not running.
+        echo.
+        set /p START_SVC="  Start it now? (Y/N): "
+        if /i "!START_SVC!"=="Y" (
+            echo  Starting !PG_SERVICE!...
+            net start "!PG_SERVICE!" >nul 2>&1
+            if %errorlevel% neq 0 (
+                echo  ERROR: Could not start the service.
+                echo  Try opening Services manually (search "Services" in Start menu),
+                echo  right-click the PostgreSQL service, and choose Start.
+                set PGPASSWORD=
+                pause
+                exit /b 1
+            )
+            echo  OK  Service started.
+            timeout /t 2 /nobreak >nul
+        )
+    ) else (
+        echo  OK  Service [!PG_SERVICE!] is running.
+    )
+) else (
+    echo  NOTE: Could not find a PostgreSQL Windows service.
+    echo  Trying connection anyway...
+)
+
+REM Try localhost first, then 127.0.0.1 as fallback
 set PGPASSWORD=!PG_PASS!
+set PG_HOST=localhost
 "!PSQL_EXE!" -U !PG_USER! -h localhost -c "\q" >nul 2>&1
 if %errorlevel% neq 0 (
-    echo  ERROR: Could not connect to PostgreSQL.
-    echo.
-    echo  Check:
-    echo    - Password correct?
-    echo    - PostgreSQL running? (Open Services, look for postgresql-x64-*)
-    echo    - Username correct?
-    echo.
-    set PGPASSWORD=
-    pause
-    exit /b 1
+    "!PSQL_EXE!" -U !PG_USER! -h 127.0.0.1 -c "\q" >nul 2>&1
+    if %errorlevel% neq 0 (
+        REM Show the actual psql error so user knows what's wrong
+        echo  ERROR: Could not connect to PostgreSQL. Details:
+        echo.
+        "!PSQL_EXE!" -U !PG_USER! -h 127.0.0.1 -c "\q" 2>&1
+        echo.
+        echo  Common fixes:
+        echo    - Wrong password? Try running this script again with the correct one.
+        echo    - Service stopped? Restart the PostgreSQL service in Windows Services.
+        echo    - Wrong username? The default is  postgres
+        echo.
+        set PGPASSWORD=
+        pause
+        exit /b 1
+    )
+    set PG_HOST=127.0.0.1
+    echo  OK  Connected as [!PG_USER!] via 127.0.0.1
+) else (
+    echo  OK  Connected as [!PG_USER!]
 )
-echo  OK  Connected as [!PG_USER!]
 
 REM ── Pick database name ────────────────────────────────────
 echo.
@@ -338,20 +384,20 @@ set /p DB_NAME="  Database name [Enter for 'grimoire']: "
 if "!DB_NAME!"=="" set DB_NAME=grimoire
 
 REM ── Create database if needed ─────────────────────────────
-"!PSQL_EXE!" -U !PG_USER! -h localhost -lqt 2>nul | findstr /C:" !DB_NAME! " >nul 2>&1
+"!PSQL_EXE!" -U !PG_USER! -h !PG_HOST! -lqt 2>nul | findstr /C:" !DB_NAME! " >nul 2>&1
 if %errorlevel% equ 0 (
     echo.
     echo  Database [!DB_NAME!] already exists.
     set /p USE_EXISTING="  Use it? (Y/N): "
     if /i "!USE_EXISTING!"=="N" (
         set /p DB_NAME="  Enter a different name: "
-        "!PSQL_EXE!" -U !PG_USER! -h localhost -c "CREATE DATABASE !DB_NAME!;" >nul 2>&1
+        "!PSQL_EXE!" -U !PG_USER! -h !PG_HOST! -c "CREATE DATABASE !DB_NAME!;" >nul 2>&1
         echo  OK  Database [!DB_NAME!] created.
     )
 ) else (
     echo.
     echo  Creating database [!DB_NAME!]...
-    "!PSQL_EXE!" -U !PG_USER! -h localhost -c "CREATE DATABASE !DB_NAME!;" >nul 2>&1
+    "!PSQL_EXE!" -U !PG_USER! -h !PG_HOST! -c "CREATE DATABASE !DB_NAME!;" >nul 2>&1
     if %errorlevel% neq 0 (
         echo  ERROR: Could not create database.
         set PGPASSWORD=
@@ -365,7 +411,7 @@ REM ── Write DATABASE_URL to .env ──────────────
 echo.
 echo [4/4] Writing connection string to .env...
 
-set DB_URL=postgresql://!PG_USER!:!PG_PASS!@localhost:5432/!DB_NAME!
+set DB_URL=postgresql://!PG_USER!:!PG_PASS!@!PG_HOST!:5432/!DB_NAME!
 
 if exist .env (
     powershell -NoProfile -Command "$f = Get-Content (Join-Path '%CD%' '.env'); $f = $f | ForEach-Object { if ($_ -match '^DATABASE_URL=') { 'DATABASE_URL=!DB_URL!' } elseif ($_ -match '^# DATABASE_URL=') { $_ } else { $_ } }; Set-Content (Join-Path '%CD%' '.env') -Value $f -Encoding ASCII"
@@ -377,7 +423,7 @@ set PGPASSWORD=
 
 if exist .env (
     echo  OK  .env updated.
-    echo      DATABASE_URL=postgresql://!PG_USER!:***@localhost:5432/!DB_NAME!
+    echo      DATABASE_URL=postgresql://!PG_USER!:***@!PG_HOST!:5432/!DB_NAME!
 ) else (
     echo  ERROR: Could not write .env
     pause
@@ -390,7 +436,7 @@ echo   Database setup complete!
 echo.
 echo   User:      !PG_USER!
 echo   Database:  !DB_NAME!
-echo   Host:      localhost:5432
+echo   Host:      !PG_HOST!:5432
 echo.
 echo   Run start.bat to launch Grimoire.
 echo   (start.bat syncs the schema tables automatically on startup)
