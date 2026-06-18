@@ -84,10 +84,13 @@ echo ============================================================
 echo   Setup complete!
 echo.
 echo   NEXT STEPS:
-echo     1. Fill in DATABASE_URL in the Notepad window that just opened
-echo     2. Save the file and close Notepad
-echo     3. (Optional) Run setup-ollama.bat to set up local AI
-echo     4. Run start.bat to launch Grimoire
+echo     1. Run setup-database.bat  ^<^<^< do this next
+echo        Connects to PostgreSQL, creates your database,
+echo        and writes the correct DATABASE_URL to .env automatically.
+echo.
+echo     2. (Optional) Run setup-ollama.bat to set up local AI
+echo.
+echo     3. Run start.bat to launch Grimoire
 echo ============================================================
 echo.
 pause

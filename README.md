@@ -47,53 +47,55 @@ Install these before running the `.bat` files:
 Open the extracted folder. You will see these `.bat` files:
 
 ```
-install.bat        ← Run this first, one time only
-start.bat          ← Run this every day to launch the app
-setup-ollama.bat   ← Optional: set up local AI
-update.bat         ← Optional: update to the latest version
+install.bat          ← Step 1: run once to install dependencies
+setup-database.bat   ← Step 2: creates your database and writes .env automatically
+setup-ollama.bat     ← Step 3: optional, for local AI
+start.bat            ← Every day: launches the app
+update.bat           ← Optional: update to the latest version
 ```
 
 **Double-click `install.bat`** and follow the prompts. It will:
 - Check that Node.js is installed
 - Install all dependencies (`npm install`)
-- Create a `.env` file in the same folder
-- Open the `.env` file in Notepad automatically
+- Create a starter `.env` file
 
 > If Windows asks *"Do you want to allow this app to make changes?"* click **Yes**. If it shows a blue SmartScreen warning, click **More info → Run anyway** — this is normal for unsigned `.bat` files.
 
 ---
 
-### Step 4 — Fill in your .env file
+### Step 4 — Set up your database
 
-When Notepad opens with the `.env` file, replace the `DATABASE_URL` line with your real connection string. Choose the option that matches your setup:
+**Option A — Local PostgreSQL (recommended if already installed)**
 
-**Option A — Local PostgreSQL (already installed on your PC)**
+Double-click **`setup-database.bat`**. It will:
+1. Find your PostgreSQL installation automatically
+2. Ask for your postgres username and password
+3. Let you name the database (default: `grimoire`)
+4. Create the database for you
+5. Write the correct `DATABASE_URL` into `.env` automatically — no manual editing needed
 
-First, create the database. Open **Command Prompt** and run:
-```
-psql -U postgres -c "CREATE DATABASE grimoire;"
-```
-Then set your `.env`. The connection string **must** include your username and password — note the `postgres:YourPassword@` part:
-```
-DATABASE_URL=postgresql://postgres:YourPassword@localhost:5432/grimoire
-                           ^^^^^^^^ ^^^^^^^^^^^  ^^^^^^^^^  ^^^^  ^^^^^^^
-                           username password     host       port  database
-SESSION_SECRET=any-long-random-string-you-choose
-```
+That's it. Skip to Step 5.
 
-> **Common mistake:** Writing `postgresql://localhost:5432/grimoire` without a username and password. PostgreSQL will silently connect to the wrong database or refuse the connection. Always include `username:password@` between `://` and `localhost`.
+---
 
 **Option B — Free cloud database (Neon)**
 
-Sign up at [neon.tech](https://neon.tech), create a project, and copy the **Connection String**:
-```
-DATABASE_URL=postgresql://alice:abc123@ep-cool-fog-123456.us-east-2.aws.neon.tech/neondb?sslmode=require
-SESSION_SECRET=any-long-random-string-you-choose
-```
+If you don't have PostgreSQL installed locally:
 
-Save the file (`Ctrl+S`) and close Notepad.
+1. Sign up at [neon.tech](https://neon.tech) and create a project
+2. Copy the **Connection String** — it looks like:
+   ```
+   postgresql://alice:abc123@ep-cool-fog-123456.us-east-2.aws.neon.tech/neondb?sslmode=require
+   ```
+3. Open `.env` in Notepad and paste it as the `DATABASE_URL` value
 
-> `SESSION_SECRET` can be any string — just change it from the default. It keeps your session secure.
+> **If you edit `.env` manually** — the connection string format is strict. Always include `username:password@` between `://` and the hostname. Missing credentials is the most common setup mistake:
+> ```
+> ✗  postgresql://localhost:5432/grimoire          (missing user:password@)
+> ✓  postgresql://postgres:abc123@localhost:5432/grimoire
+> ```
+
+> `SESSION_SECRET` can be any string — just change it from the default.
 
 ---
 
