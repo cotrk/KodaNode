@@ -193,17 +193,100 @@ for /d %%d in ("C:\Program Files\PostgreSQL\*") do (
     )
 )
 
+REM ── psql not found — offer recovery options ───────────────
 echo.
-echo  ERROR: PostgreSQL (psql.exe) not found.
+echo  PostgreSQL (psql.exe) was not found in PATH or C:\Program Files\PostgreSQL\
 echo.
-echo  Make sure PostgreSQL is installed. Download from:
-echo    https://www.postgresql.org/download/windows
+echo  What would you like to do?
 echo.
-echo  If installed, add it to PATH:
-echo    1. Search "Environment Variables" in the Start menu
-echo    2. Edit the PATH variable and add:
-echo       C:\Program Files\PostgreSQL\18\bin
-echo       (replace 18 with your version number)
+echo    1. Enter the path to your PostgreSQL bin folder manually
+echo       (e.g.  P:\PostgreSQL\18\bin)
+echo.
+echo    2. Scan a drive to find PostgreSQL automatically
+echo       (useful if PostgreSQL is on D:\, E:\, P:\, etc.)
+echo.
+echo    3. Exit
+echo.
+set /p NOTFOUND_CHOICE="  Your choice (1-3): "
+
+if "!NOTFOUND_CHOICE!"=="1" goto :psql_manual_path
+if "!NOTFOUND_CHOICE!"=="2" goto :psql_scan_drive
+if "!NOTFOUND_CHOICE!"=="3" exit /b 0
+echo  Invalid choice.
+pause
+exit /b 1
+
+:psql_manual_path
+echo.
+echo  Enter the full path to the PostgreSQL bin folder.
+echo  This is the folder that contains psql.exe.
+echo  Example:  P:\PostgreSQL\18\bin
+echo            C:\Program Files\PostgreSQL\17\bin
+echo.
+set /p PSQL_BIN_DIR="  Path to bin folder: "
+if "!PSQL_BIN_DIR!"=="" (
+    echo  No path entered. Exiting.
+    pause
+    exit /b 1
+)
+if exist "!PSQL_BIN_DIR!\psql.exe" (
+    set PSQL_EXE=!PSQL_BIN_DIR!\psql.exe
+    for /f "tokens=*" %%v in ('"!PSQL_BIN_DIR!\psql.exe" --version 2^>^&1') do set PSQL_VER=%%v
+    echo  OK  Found: !PSQL_EXE!
+    echo      !PSQL_VER!
+    goto :psql_found
+) else (
+    echo.
+    echo  ERROR: psql.exe not found at: !PSQL_BIN_DIR!
+    echo  Check the path and try again.
+    echo.
+    pause
+    exit /b 1
+)
+
+:psql_scan_drive
+echo.
+echo  Enter the drive letter to scan (just the letter, e.g.  P  or  D  or  E).
+echo.
+set /p SCAN_DRIVE_LETTER="  Drive letter: "
+if "!SCAN_DRIVE_LETTER!"=="" (
+    echo  No drive entered. Exiting.
+    pause
+    exit /b 1
+)
+set SCAN_DRIVE=!SCAN_DRIVE_LETTER!:
+echo.
+echo  Scanning !SCAN_DRIVE!\ for psql.exe...
+echo  (This may take a moment)
+echo.
+
+REM Search common subfolder patterns on the given drive
+for /d %%a in ("!SCAN_DRIVE!\PostgreSQL\*" "!SCAN_DRIVE!\pgsql\*" "!SCAN_DRIVE!\Program Files\PostgreSQL\*" "!SCAN_DRIVE!\apps\PostgreSQL\*") do (
+    if exist "%%a\bin\psql.exe" (
+        set PSQL_EXE=%%a\bin\psql.exe
+        for /f "tokens=*" %%v in ('"%%a\bin\psql.exe" --version 2^>^&1') do set PSQL_VER=%%v
+        echo  OK  Found at: %%a\bin\psql.exe
+        echo      !PSQL_VER!
+        goto :psql_found
+    )
+)
+
+REM Deeper scan: one more level down (e.g. P:\PostgreSQL\18\bin)
+for /d %%a in ("!SCAN_DRIVE!\*") do (
+    for /d %%b in ("%%a\*") do (
+        if exist "%%b\bin\psql.exe" (
+            set PSQL_EXE=%%b\bin\psql.exe
+            for /f "tokens=*" %%v in ('"%%b\bin\psql.exe" --version 2^>^&1') do set PSQL_VER=%%v
+            echo  OK  Found at: %%b\bin\psql.exe
+            echo      !PSQL_VER!
+            goto :psql_found
+        )
+    )
+)
+
+echo  Could not find psql.exe on !SCAN_DRIVE!\
+echo.
+echo  Try option 1 (enter path manually) or check that PostgreSQL is installed.
 echo.
 pause
 exit /b 1
