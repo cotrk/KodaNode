@@ -314,38 +314,42 @@ echo.
 echo [3/4] Testing connection...
 echo.
 
-REM Find the postgresql service name (could be postgresql-x64-18, postgresql-18, etc.)
+REM Find the PostgreSQL service name using PowerShell (reliable, works on all Windows versions)
 set PG_SERVICE=
-for /f "tokens=1" %%s in ('sc query type^= all state^= all 2^>nul ^| findstr /i "postgresql"') do (
-    if "!PG_SERVICE!"=="" set PG_SERVICE=%%s
-)
+for /f "tokens=*" %%s in ('powershell -NoProfile -Command "Get-Service -Name postgresql* -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Name" 2^>nul') do set PG_SERVICE=%%s
 
 if not "!PG_SERVICE!"=="" (
-    sc query "!PG_SERVICE!" 2>nul | findstr /i "RUNNING" >nul 2>&1
-    if %errorlevel% neq 0 (
-        echo  NOTE: PostgreSQL service [!PG_SERVICE!] is not running.
+    for /f "tokens=*" %%t in ('powershell -NoProfile -Command "Get-Service -Name '!PG_SERVICE!' | Select-Object -ExpandProperty Status" 2^>nul') do set PG_STATUS=%%t
+    if /i "!PG_STATUS!"=="Running" (
+        echo  OK  Service [!PG_SERVICE!] is running.
+    ) else (
+        echo  NOTE: PostgreSQL service [!PG_SERVICE!] is stopped.
         echo.
         set /p START_SVC="  Start it now? (Y/N): "
         if /i "!START_SVC!"=="Y" (
             echo  Starting !PG_SERVICE!...
+            REM Try without elevation first; if that fails, request UAC elevation
             net start "!PG_SERVICE!" >nul 2>&1
             if %errorlevel% neq 0 (
-                echo  ERROR: Could not start the service.
-                echo  Try opening Services manually (search "Services" in Start menu),
-                echo  right-click the PostgreSQL service, and choose Start.
-                set PGPASSWORD=
-                pause
-                exit /b 1
+                echo  Requesting administrator permission...
+                powershell -NoProfile -Command "Start-Process cmd -ArgumentList '/c net start \"!PG_SERVICE!\"' -Verb RunAs -Wait" >nul 2>&1
+                if %errorlevel% neq 0 (
+                    echo.
+                    echo  Could not start the service automatically.
+                    echo  Fix: right-click setup-database.bat and choose "Run as administrator"
+                    echo  Or:  open Services (search Start menu), find PostgreSQL, click Start
+                    echo.
+                    set PGPASSWORD=
+                    pause
+                    exit /b 1
+                )
             )
-            echo  OK  Service started.
             timeout /t 2 /nobreak >nul
+            echo  OK  Service started.
         )
-    ) else (
-        echo  OK  Service [!PG_SERVICE!] is running.
     )
 ) else (
-    echo  NOTE: Could not find a PostgreSQL Windows service.
-    echo  Trying connection anyway...
+    echo  NOTE: No PostgreSQL service found — trying connection anyway...
 )
 
 REM Try localhost first, then 127.0.0.1 as fallback
