@@ -48,7 +48,7 @@ if exist .env (
     echo  .env already exists — skipping.
     echo  Edit it at: %CD%\.env
 ) else (
-    powershell -NoProfile -Command "$lines = @('DATABASE_URL=postgresql://localhost:5432/grimoire','SESSION_SECRET=change-me-to-a-long-random-secret'); Set-Content -Path (Join-Path '%CD%' '.env') -Value $lines -Encoding UTF8"
+    powershell -NoProfile -Command "$lines = @('DATABASE_URL=postgresql://localhost:5432/grimoire','SESSION_SECRET=change-me-to-a-long-random-secret'); Set-Content -Path (Join-Path '%CD%' '.env') -Value $lines -Encoding ASCII"
     if exist .env (
         echo  OK  .env created at: %CD%\.env
     ) else (

@@ -43,32 +43,35 @@ if not exist .env (
 
 REM ── Load .env into Windows environment ───────────────────
 echo  Loading configuration...
-for /f "usebackq tokens=1,* delims==" %%a in (".env") do (
-    set "LINE=%%a"
-    if not "!LINE:~0,1!"=="#" (
+
+REM Use PowerShell to parse .env — handles UTF-8 BOM correctly
+powershell -NoProfile -Command "Get-Content (Join-Path '%CD%' '.env') | Where-Object { $_ -match '^\s*[^#].+=' } | ForEach-Object { 'SET ' + $_ } | Set-Content '%TEMP%\grimoire_env.bat' -Encoding ASCII"
+
+if exist "%TEMP%\grimoire_env.bat" (
+    call "%TEMP%\grimoire_env.bat"
+    del "%TEMP%\grimoire_env.bat" >nul 2>&1
+) else (
+    echo  WARN: Could not parse .env — trying fallback method...
+    for /f "usebackq tokens=1,* delims==" %%a in (".env") do (
         if not "%%a"=="" set "%%a=%%b"
     )
 )
 set NODE_ENV=development
 
 REM ── Verify DATABASE_URL is set ───────────────────────────
-if "%DATABASE_URL%"=="" (
+if "!DATABASE_URL!"=="" (
     echo.
     echo  ERROR: DATABASE_URL is not set in your .env file.
-    echo  Open .env and add your PostgreSQL connection string.
-    echo  Free databases: https://neon.tech  or  https://supabase.com
     echo.
+    echo  Open .env and set it. For local PostgreSQL 18 it looks like:
+    echo    DATABASE_URL=postgresql://postgres:YourPassword@localhost:5432/grimoire
+    echo.
+    echo  Make sure the 'grimoire' database exists. Create it by running:
+    echo    psql -U postgres -c "CREATE DATABASE grimoire;"
+    echo.
+    start notepad.exe "%CD%\.env"
     pause
     exit /b 1
-)
-if "%DATABASE_URL%"=="postgresql://localhost:5432/grimoire" (
-    echo.
-    echo  WARNING: DATABASE_URL is still set to the default placeholder.
-    echo  You need a real PostgreSQL database. Edit your .env file.
-    echo  Free databases: https://neon.tech  or  https://supabase.com
-    echo.
-    echo  Press any key to try starting anyway, or close this window to cancel.
-    pause
 )
 echo  OK  Configuration loaded.
 

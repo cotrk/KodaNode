@@ -34,11 +34,11 @@ Install these before running the `.bat` files:
 | Requirement | Notes | Link |
 |---|---|---|
 | **Node.js v18+** | Choose the LTS version | [nodejs.org](https://nodejs.org/en/download) |
-| **PostgreSQL database** | Free cloud options below | [neon.tech](https://neon.tech) or [supabase.com](https://supabase.com) |
+| **PostgreSQL database** | Local install or free cloud | [postgresql.org](https://www.postgresql.org/download/windows) or [neon.tech](https://neon.tech) |
 | **Chrome or Edge** | Required for Vault folder sync | Pre-installed on Windows 11 |
 | **Ollama** | Optional — for local AI | [ollama.com/download/windows](https://ollama.com/download/windows) |
 
-> **Free PostgreSQL database**: Sign up at [neon.tech](https://neon.tech) (recommended) or [supabase.com](https://supabase.com). After creating a project, copy the **Connection String** — it looks like `postgresql://user:password@host/dbname`.
+> **Already have PostgreSQL installed locally?** Skip the cloud options — see Step 4 for your connection string format.
 
 ---
 
@@ -65,17 +65,26 @@ update.bat         ← Optional: update to the latest version
 
 ### Step 4 — Fill in your .env file
 
-When Notepad opens with the `.env` file, replace the `DATABASE_URL` line with your real connection string:
+When Notepad opens with the `.env` file, replace the `DATABASE_URL` line with your real connection string. Choose the option that matches your setup:
 
+**Option A — Local PostgreSQL (already installed on your PC)**
+
+First, create the database. Open **Command Prompt** and run:
 ```
-DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DATABASE
+psql -U postgres -c "CREATE DATABASE grimoire;"
+```
+Then set your `.env` like this (use the password you set when installing PostgreSQL):
+```
+DATABASE_URL=postgresql://postgres:YourPassword@localhost:5432/grimoire
 SESSION_SECRET=any-long-random-string-you-choose
 ```
 
-**Example (Neon):**
+**Option B — Free cloud database (Neon)**
+
+Sign up at [neon.tech](https://neon.tech), create a project, and copy the **Connection String**:
 ```
 DATABASE_URL=postgresql://alice:abc123@ep-cool-fog-123456.us-east-2.aws.neon.tech/neondb?sslmode=require
-SESSION_SECRET=my-super-secret-key-change-this
+SESSION_SECRET=any-long-random-string-you-choose
 ```
 
 Save the file (`Ctrl+S`) and close Notepad.
