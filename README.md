@@ -1,4 +1,4 @@
-# Grimoire
+# KodaNode
 
 A local-first AI Prompt Knowledge Base for Windows 11. Manage, catalog, and archive your AI prompt library with native markdown support, a split-pane editor, Ollama integration, collections, vault folder sync, and MCP tool support.
 
